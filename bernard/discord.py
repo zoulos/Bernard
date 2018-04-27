@@ -3,6 +3,7 @@ from . import config
 import asyncio
 import discord
 import logging
+import subprocess
 
 from discord.ext import commands
 from discord import embeds
@@ -27,8 +28,12 @@ async def on_ready():
 
     await asyncio.sleep(5)
 
-    logger.info('Setting game status as in as "{0}"'.format(config.cfg['bernard']['gamestatus']))
-    await bot.change_presence(game=discord.Game(name=config.cfg['bernard']['gamestatus']))
+    if config.cfg['bernard']['debug']:
+        gitcommit = subprocess.check_output(['git','rev-parse','--short','HEAD']).decode(encoding='UTF-8').rstrip()
+        await bot.change_presence(game=discord.Game(name="Debug: {}".format(gitcommit)))
+    else:
+        logger.info('Setting game status as in as "{0}"'.format(config.cfg['bernard']['gamestatus']))
+        await bot.change_presence(game=discord.Game(name=config.cfg['bernard']['gamestatus']))
 
     bot.remove_command('help')
 
