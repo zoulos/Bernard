@@ -20,8 +20,12 @@ async def get_invites():
 
 async def invite_cache_update():
     global INVITE_CACHE
-    INVITES = await get_invites()
-    INVITE_CACHE = INVITES.copy()
+    try:
+        INVITES = await get_invites()
+        INVITE_CACHE = INVITES.copy()
+        logger.info("invite cache updated {} invites in cache".format(len(INVITES)))
+    except Exception as e:
+        logger.error("unable to update cache. Exception thrown: {}".format(e))
 
 #this might never be 100% reliable, but will be very useful in raids to mass purge or rollback spammers via a later ban command
 async def on_member_join_attempt_invite_source(user):
