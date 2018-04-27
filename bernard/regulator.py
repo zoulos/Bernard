@@ -127,7 +127,7 @@ async def ban(ctx, target, *, reason):
     if allow_regulation(ctx):
         await discord.bot.say("✔️ {} is **BANNING** {} with the reason of `{}`.".format(ctx.message.author.mention, ctx.message.mentions[0].mention, reason))
         await asyncio.sleep(5)
-        res = await common.ban_verbose(ctx.message.mentions[0], reason)
+        res = await common.ban_verbose(ctx.message.mentions[0], "{} - '{}'".format(ctx.message.author.name, reason))
         if res == False:
             await discord.bot.say("❓ Something's fucked! Unable to issue ban to Discord API. Bother cake.")
         else:
