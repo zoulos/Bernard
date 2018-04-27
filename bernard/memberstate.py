@@ -29,7 +29,7 @@ async def on_member_join(user):
     retdb = database.dbCursor.fetchone()
     if retdb is not None:
         ignore_depart.append(user.id)
-        await discord.bot.ban(user)
+        await common.ban_verbose(user, "RETROACTIVE_BAN_VIA_BOT_DB - '{}'".format(retdb[2]))
         await discord.bot.send_message(discord.mod_channel(),"{0} **Retroactive Ban:** {1.mention} (Name:`{1.name}#{1.discriminator}` ID:`{1.id}` REASON: `{2}`)".format(common.bernardUTCTimeNow(), user, retdb[2]))
         journal.update_journal_event(module=__name__, event="RETROACTIVE_BAN", userid=user.id, contents=retdb[2])
         return
