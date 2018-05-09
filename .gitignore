@@ -5,3 +5,6 @@ bernard/tools/
 bernard3.sublime-project
 bernard3.sublime-workspace
 sublime3.sublime-workspace
+
+.vscode
+.mypy_cache

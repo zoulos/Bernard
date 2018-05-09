@@ -210,7 +210,7 @@ def on_member_remove_purgedb(user):
 
 def subscriber_feature_roles():
     logger.info("Building list of subscriber role IDs via subscriber_feature_roles()")
-    global SUBCRIBER_FEATURES    
+    global SUBCRIBER_FEATURES
     SUBCRIBER_FEATURES = []
     for feature in config.cfg['subscriber']['features']:
         SUBCRIBER_FEATURES.append(config.cfg['subscriber']['features'][feature]['roleid'])
