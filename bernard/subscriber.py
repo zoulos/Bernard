@@ -1,10 +1,9 @@
-from . import config
-from . import common
-from . import discord
-from . import analytics
-from . import database
-from . import journal
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.analytics as analytics
+import bernard.database as database
+import bernard.journal as journal
 import time
 import logging
 import asyncio

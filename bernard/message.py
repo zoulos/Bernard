@@ -1,11 +1,10 @@
-from . import config
-from . import common
-from . import discord
-from . import database
-from . import auditing
-from . import analytics
-from . import antispam
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.database as database
+import bernard.auditing as auditing
+import bernard.analytics as analytics
+import bernard.antispam as antispam
 import logging
 
 logger = logging.getLogger(__name__)

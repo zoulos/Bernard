@@ -1,12 +1,11 @@
-from . import config
-from . import common
-from . import discord
-from . import analytics
-from . import database
-from . import invites
-from . import journal
-from . import subscriber
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.analytics as analytics
+import bernard.database as database
+import bernard.invites as invites
+import bernard.journal as journal
+import bernard.subscriber as subscriber
 import logging
 
 logger = logging.getLogger(__name__)
@@ -53,7 +52,7 @@ async def on_member_remove(user):
     msgProcessStart = analytics.getEventTime()
     if common.isDiscordMainServer(user.server) is not True:
         return
- 
+
     #if the user was banned or removed for another reason dont issue the depart statement
     if user.id in ignore_depart:
         ignore_depart.remove(user.id)
@@ -86,7 +85,7 @@ async def on_member_ban(member):
     await invites.on_member_leave_invite_cleanup(member)
 
     #remove any cached subscriber information
-    subscriber.on_member_remove_purgedb(member)    
+    subscriber.on_member_remove_purgedb(member)
 
     #capture the event in the internal log
     journal.update_journal_event(module=__name__, event="ON_MEMBER_BANNED", userid=member.id, contents="{0.name}#{0.discriminator}".format(member))
@@ -95,7 +94,7 @@ async def on_member_ban(member):
 
 #unban events server = discord.Server, user = discord.User
 @discord.bot.event
-async def on_member_unban(server, user): 
+async def on_member_unban(server, user):
     msgProcessStart = analytics.getEventTime()
     if common.isDiscordMainServer(server) is not True:
         return
@@ -119,7 +118,7 @@ async def on_member_unban(server, user):
 
 #user object changes. before/after = discord.Member
 @discord.bot.event
-async def on_member_update(before, after): 
+async def on_member_update(before, after):
     msgProcessStart = analytics.getEventTime()
     if common.isDiscordMainServer(before.server) is not True:
         return

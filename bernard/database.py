@@ -1,5 +1,4 @@
-from . import config
-
+import bernard.config as config
 import sqlite3
 import logging
 import time
@@ -11,7 +10,7 @@ logger.info("loading...")
 dbConn = sqlite3.connect(config.cfg['bernard']['database']['sqlite'], check_same_thread=False, timeout=config.cfg['bernard']['database']['timeout'])
 dbCursor = dbConn.cursor()
 
-#check if the db is locked 
+#check if the db is locked
 def check_db_lock():
     try:
         dbCursor.execute("SELECT * FROM journal_jobs")

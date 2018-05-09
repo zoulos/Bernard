@@ -1,10 +1,8 @@
-from . import config
-
+import bernard.config as config
 import asyncio
 import discord
 import logging
 import subprocess
-
 from discord.ext import commands
 from discord import embeds
 

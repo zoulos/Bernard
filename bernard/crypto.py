@@ -1,13 +1,12 @@
-from . import config
-from . import common
-from . import discord
-from . import analytics
-from . import database
-from . import journal
-
-from datetime import datetime
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.analytics as analytics
+import bernard.database as database
+import bernard.journal as journal
 import logging
 import asyncio
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 logger.info("loading...")
@@ -105,7 +104,7 @@ async def crypto(ctx, coin: str, currency="usd", exchange=None):
     if c.currency == "usd":
         await discord.bot.say("**{0}**: {1} ({2})".format(lookup[2].upper(),price,exchange.title()))
     else:
-        usdrough = await c.force_fiat()        
+        usdrough = await c.force_fiat()
         await discord.bot.say("**{0}**: {1} ({2}) {3}".format(lookup[2].upper(),price,exchange.title(),usdrough))
 
 @discord.bot.command(pass_context=True, aliases=['mc'])
@@ -132,7 +131,7 @@ async def multicrypto(ctx, coin: str, currency="usd"):
         return
     else:
         pass
-    
+
     #build the string for chat and send it off
     formatted = ""
     for exchange in lookup:
@@ -142,7 +141,7 @@ async def multicrypto(ctx, coin: str, currency="usd"):
                 formatted += "**{0}**: {1}\n\n".format(exch, pri)
             else:
                 usdrough = await c.force_fiat()
-                formatted += "**{0}**: {1} {2}\n\n".format(exch, pri, usdrough) 
+                formatted += "**{0}**: {1} {2}\n\n".format(exch, pri, usdrough)
     await discord.bot.say(formatted)
 
 @discord.bot.command(pass_context=True, aliases=['cmc'])
@@ -162,15 +161,15 @@ async def coinmarketcap(ctx, coin: str):
     emd = discord.embeds.Embed(title='Coin Market Cap data for: {0} "{1}"'.format(coin.upper(), cmc['name']), url="https://coinmarketcap.com/currencies/"+cmc['id']+"/", colour=0xE79015)
     emd.set_thumbnail(url='https://files.coinmarketcap.com/static/img/coins/128x128/'+cmc['id']+'.png')
     emd.add_field(name="Rank", value=cmc['rank'], inline=True)
-    emd.add_field(name="Market Cap", value="${:0,.2f}".format(float(cmc['market_cap_usd'])), inline=True)     
-    emd.add_field(name="Price (USD)", value="${:,.2f}".format(float(cmc['price_usd'])), inline=True)    
+    emd.add_field(name="Market Cap", value="${:0,.2f}".format(float(cmc['market_cap_usd'])), inline=True)
+    emd.add_field(name="Price (USD)", value="${:,.2f}".format(float(cmc['price_usd'])), inline=True)
     emd.add_field(name="Price (BTC)", value="{:.8f}".format(float(cmc['price_btc'])), inline=True)
-    emd.add_field(name="Available Supply", value="{:,}".format(float(cmc['available_supply'])), inline=True) 
+    emd.add_field(name="Available Supply", value="{:,}".format(float(cmc['available_supply'])), inline=True)
     try:
         emd.add_field(name="Max Supply", value="{:,}".format(float(cmc['max_supply'])), inline=True)
     except TypeError:
         emd.add_field(name="Max Supply", value="∞", inline=True)
-    emd.add_field(name="Market Change (1H / 24H / 7D)", value="{}% / {}% / {}%".format(cmc['percent_change_1h'], cmc['percent_change_24h'], cmc['percent_change_7d']), inline=False) 
+    emd.add_field(name="Market Change (1H / 24H / 7D)", value="{}% / {}% / {}%".format(cmc['percent_change_1h'], cmc['percent_change_24h'], cmc['percent_change_7d']), inline=False)
     emd.set_footer(text="Last Updated: {} EST".format(datetime.fromtimestamp(int(cmc['last_updated'])).isoformat()))
 
     await discord.bot.say(embed=emd)
@@ -328,7 +327,7 @@ class TickerFetch(Coin):
             except:
                 return None
         else:
-            return None       
+            return None
 
     async def bittrex(self):
         ret = await common.getJSON('https://bittrex.com/api/v1.1/public/getticker?market='+self.currency.replace("usd","usdt")+'-'+self.ticker)
@@ -465,8 +464,8 @@ class UpdateCoins:
             return None
 
     async def poloniex(self):
-        logger.info("UPDATING POLOINEX TICKERS...") 
-        database.dbCursor.execute('''INSERT OR IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(?,?,?,?,?)''', (8, "poloniex", "btc", "usd", "poloniexbtcusd"))        
+        logger.info("UPDATING POLOINEX TICKERS...")
+        database.dbCursor.execute('''INSERT OR IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(?,?,?,?,?)''', (8, "poloniex", "btc", "usd", "poloniexbtcusd"))
         ret = await common.getJSON('https://poloniex.com/public?command=returnCurrencies')
         if ret is not None:
             for ticker in ret:
@@ -478,7 +477,7 @@ class UpdateCoins:
             return None
 
     async def bitstamp(self):
-        logger.info("UPDATING BITSTAMP TICKERS...") 
+        logger.info("UPDATING BITSTAMP TICKERS...")
         ret = await common.getJSON('https://www.bitstamp.net/api/v2/trading-pairs-info/')
         if ret is not None:
             for ticker in ret:
@@ -491,7 +490,7 @@ class UpdateCoins:
             return None
 
     async def binance(self):
-        logger.info("UPDATING BINANCE TICKERS...") 
+        logger.info("UPDATING BINANCE TICKERS...")
         ret = await common.getJSON('https://api.binance.com/api/v1/ticker/allPrices')
         if ret is not None:
             for ticker in ret:
@@ -504,7 +503,7 @@ class UpdateCoins:
             return None
 
     async def kraken(self):
-        logger.info("UPDATING KRAKEN TICKERS...") 
+        logger.info("UPDATING KRAKEN TICKERS...")
         ret = await common.getJSON('https://api.kraken.com/0/public/AssetPairs')
         if ret is not None:
             for ticker, data in ret['result'].items():
@@ -529,14 +528,14 @@ class UpdateCoins:
             return None
 
     async def coinmarketcap(self):
-        logger.info("UPDATING CMC TICKERS AND LOOKUP TABLE...") 
+        logger.info("UPDATING CMC TICKERS AND LOOKUP TABLE...")
         ret = await common.getJSON('https://api.coinmarketcap.com/v1/ticker/?limit='+str(config.cfg['chat']['crypto']['cmc_limit']))
         if ret is not None:
             for ticker in ret:
                 #handle the normal !c / !mc lookups
                 unique = "coinmarketcap" + ticker['symbol'] + "btc"
                 database.dbCursor.execute('''INSERT OR IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(?,?,?,?,?)''', (999, "coinmarketcap", ticker['symbol'].lower(), "btc", unique))
-                
+
                 #handle !cmc lookups with the crypto_cmc table
                 database.dbCursor.execute('''INSERT OR IGNORE INTO crypto_cmc(ticker, id, name) VALUES(?,?,?)''', (ticker['symbol'], ticker['id'], ticker['name']))
             database.dbConn.commit()

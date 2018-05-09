@@ -1,9 +1,8 @@
-from . import config
-from . import common
-from . import discord
-from . import analytics
-from . import journal
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.analytics as analytics
+import bernard.journal as journal
 import asyncio
 import datetime
 import logging
@@ -37,7 +36,7 @@ async def on_member_join_attempt_invite_source(user):
                 if invite.code == cached_invite.code: #if the code is in cache
                     if invite.uses != cached_invite.uses: #if the uses is not the same, it was probably this user
                         journal.update_journal_event(module=__name__, event="ON_MEMBER_JOINED_WITH_INVITE", userid=user.id, contents=invite.code)
-                        logger.info("Guesssing that {0.name} joined via:{1.code} from {1.inviter.name}. Usage from cache changed {2}".format(user, invite, (invite.uses - cached_invite.uses)))                        
+                        logger.info("Guesssing that {0.name} joined via:{1.code} from {1.inviter.name}. Usage from cache changed {2}".format(user, invite, (invite.uses - cached_invite.uses)))
                         return invite.code
 
         #update the cache. Return None if not sure

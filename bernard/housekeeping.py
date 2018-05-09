@@ -1,9 +1,8 @@
-from . import config
-from . import common
-from . import discord
-from . import analytics
-from . import journal
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.analytics as analytics
+import bernard.journal as journal
 import logging
 import asyncio
 
@@ -23,7 +22,7 @@ async def purge_inactive_users():
             pruned = await discord.bot.prune_members(server=discord.objectFactory(config.cfg['discord']['server']), days=config.cfg['purge_inactive_users']['inactive_days'])
 
             #notify via mod room and console log whos getting purged
-            logger.warn("Purging {0} inactive users via purge_inactive_users() background job".format(pruned))            
+            logger.warn("Purging {0} inactive users via purge_inactive_users() background job".format(pruned))
             await discord.bot.send_message(discord.mod_channel(), "{0} **Pruned Inactive Users:** {1} users removed for inactivity of {2} days".format(common.bernardUTCTimeNow(), pruned, config.cfg['purge_inactive_users']['inactive_days']))
 
         logger.info("Sleeping background task purge_inactive_users() - Interval {0}".format(config.cfg['purge_inactive_users']['interval']))

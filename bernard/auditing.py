@@ -1,10 +1,8 @@
-from . import config
-from . import common
-from . import discord
-from . import database
-from . import journal
-
-import re
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.database as database
+import bernard.journal as journal
 import logging
 import tldextract
 
@@ -57,7 +55,7 @@ async def discord_invites(msg):
             await discord.bot.send_message(msg.channel, "⚠️ {0} Your role does not meet the minimum requirements to post Discord invites.".format(msg.author.mention))
             logger.warn("deleted invite {0} under reason: 'underpowered role'".format(matched_discord[0]))
             journal.update_journal_event(module=__name__, event="AUDIT_DELETE_INVITE", userid=msg.author.id, eventid=msg.id, contents=matched_discord[0])
-    else:   
+    else:
         logger.warn("allowing discord user to post invite link: {0}".format(matched_discord[0]))
 
 #CREATE TABLE `auditing_blacklisted_domains` ( `domain` TEXT UNIQUE, `action` TEXT, `added_by` TEXT, `added_when` INTEGER, `hits` INTEGER DEFAULT 0 )
@@ -68,7 +66,7 @@ async def blacklisted_domains(msg):
     if common.isDiscordAdministrator(msg.author):
         return
 
-    #matched regex into URLs list 
+    #matched regex into URLs list
     full_urls = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', msg.content)
     if len(full_urls) == 0:
         return
@@ -89,7 +87,7 @@ async def blacklisted_domains(msg):
         #up the hit counter in the DB
         database.dbCursor.execute('UPDATE auditing_blacklisted_domains SET hits=? WHERE domain=?', (dbres[4]+1,domain))
         database.dbConn.commit()
-        
+
         #if we found a domain lets act on it | methods audit / delete / kick / ban
         if dbres[1] == "audit":
             logger.info("Domain audit of user {0.author} blacklisted_domains() domain {1[0]} found".format(msg, dbres))
@@ -111,7 +109,7 @@ async def blacklisted_domains(msg):
             await discord.bot.delete_message(msg)
             await discord.bot.send_message(msg.channel, "🛑 {0.author.mention} that domain `{1[0]}` is prohibited here with the policy to **BAN** poster. Banning...".format(msg, dbres))
             await discord.bot.ban(msg.author, delete_message_days=0)
-            journal.update_journal_event(module=__name__, event="AUDIT_DOMAIN_BAN", userid=msg.author.id, eventid=msg.id, contents=dbres[0])            
+            journal.update_journal_event(module=__name__, event="AUDIT_DOMAIN_BAN", userid=msg.author.id, eventid=msg.id, contents=dbres[0])
             return
         else:
             logger.error("Unknown action attempted in blacklisted_domains() while handling a blacklisted domain {0[1]} method {0[0]}".format(dbres))

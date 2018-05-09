@@ -1,12 +1,9 @@
-from . import config
-from . import common
-from . import discord
-from . import database
-from . import analytics
-from . import crypto
-
-from tabulate import tabulate
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.database as database
+import bernard.analytics as analytics
+import bernard.crypto as crypto
 import sys
 import os
 import subprocess
@@ -14,6 +11,7 @@ import asyncio
 import logging
 import datetime
 import platform
+from tabulate import tabulate
 
 logger = logging.getLogger(__name__)
 logger.info("loading...")
@@ -122,7 +120,7 @@ async def stats(ctx, more=None):
     if more == None:
         #get the avg without numpy because I dont want to import useless shit but will do it anyway in 3 months <-- haha I did exactly this check git
         emd = discord.embeds.Embed(color=0xE79015)
-        emd.set_thumbnail(url='https://cdn.discordapp.com/emojis/403034738979241984.png')        
+        emd.set_thumbnail(url='https://cdn.discordapp.com/emojis/403034738979241984.png')
         emd.add_field(name="Bot Uptime", value=analytics.getRuntime())
         emd.add_field(name="Messages Processed", value="{:,d}".format(analytics.messages_processed))
         emd.add_field(name="Unique Users", value="{:,d}".format(len(analytics.messages_processed_users)))
@@ -159,7 +157,7 @@ async def blacklist(ctx, command: str, domain: str, policy="delete"):
     if command == "add":
         #add a new domain to the DB
         database.dbCursor.execute('''SELECT * FROM auditing_blacklisted_domains WHERE domain=?''', (domain,))
-        dbres = database.dbCursor.fetchone() 
+        dbres = database.dbCursor.fetchone()
         if dbres == None:
             database.dbCursor.execute('''INSERT OR IGNORE INTO auditing_blacklisted_domains(domain, action, added_by, added_when) VALUES(?,?,?,?)''', (domain.lower(), policy.lower(), ctx.message.author.name, int(datetime.datetime.utcnow().timestamp())))
             database.dbConn.commit()
@@ -196,7 +194,7 @@ async def blacklist(ctx, command: str, domain: str, policy="delete"):
             emd.add_field(name="Action", value=dbres[1].title())
             emd.add_field(name="Hits", value="{:,}".format(dbres[4]))
             emd.add_field(name="Added On", value="{} UTC".format(datetime.datetime.utcfromtimestamp(dbres[3]).isoformat()), inline=True)
-            emd.add_field(name="Added By", value=dbres[2], inline=True)        
+            emd.add_field(name="Added By", value=dbres[2], inline=True)
             await discord.bot.say(embed=emd)
         else:
             await discord.bot.say("⚠️ {0.message.author.mention} Domain not found in database.".format(ctx))

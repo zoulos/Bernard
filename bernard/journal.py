@@ -1,14 +1,11 @@
-from . import config
-from . import common
-from . import discord
-from . import database
-
-from datetime import datetime
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.database as database
 import logging
 import asyncio
 import time
-
+from datetime import datetime
 logger = logging.getLogger(__name__)
 logger.info("loading...")
 

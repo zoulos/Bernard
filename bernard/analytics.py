@@ -1,7 +1,6 @@
-from . import config
-from . import common
-from . import discord
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
 import time
 import logging
 import numpy

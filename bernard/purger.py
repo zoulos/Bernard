@@ -1,8 +1,7 @@
-from . import config
-from . import common
-from . import discord
-from . import analytics
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.analytics as analytics
 import asyncio
 import logging
 
@@ -28,6 +27,6 @@ async def purgeuser(ctx, snowflake: str):
                     counter += 1
                     await discord.bot.delete_message(message)
                     await asyncio.sleep(0.3)
-            
+
     time = analytics.getEventTime() - start
     await discord.bot.send_message(ctx.message.author, "Cleanup on <@{0}> completed: Deleted {1} messages in {2} seconds.".format(snowflake, counter, int(time)))

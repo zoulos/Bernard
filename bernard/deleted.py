@@ -1,9 +1,8 @@
-from . import config
-from . import common
-from . import discord
-from . import analytics
-from . import journal
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.analytics as analytics
+import bernard.journal as journal
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,7 +10,7 @@ logger.info("loading...")
 
 #new member to the server. message = discord.Message
 @discord.bot.event
-async def on_message_delete(message): 
+async def on_message_delete(message):
     msgProcessStart = analytics.getEventTime()
     if common.isDiscordMainServer(message.server) is not True:
         return

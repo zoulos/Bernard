@@ -1,14 +1,13 @@
-from . import config
-from . import common
-from . import discord
-from . import journal
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
+import bernard.journal as journal
 import asyncio
 import aiohttp
 import logging
 
 logger = logging.getLogger(__name__)
-logger.info("loading...") 
+logger.info("loading...")
 
 """
 TODO:
@@ -49,7 +48,7 @@ def allow_regulation(ctx):
     if common.isDiscordRegulator(ctx.message.author) == True:
         pass
     else:
-        logger.info("Attempted to call allow_regulation but was rejected for: no permission")        
+        logger.info("Attempted to call allow_regulation but was rejected for: no permission")
         return False
 
     #has to be a mention, not just typing a username
@@ -162,4 +161,4 @@ async def unsilence(ctx, target):
         await discord.bot.server_voice_state(ctx.message.mentions[0], mute=0)
         journal.update_journal_regulator(invoker=ctx.message.author.id, target=ctx.message.mentions[0].id, eventdata="None", action="VOICE_UNSILENCE", messageid=ctx.message.id)
     else:
-        await discord.bot.say("🛑 {} unable to moderate user. Either you failed to tag the user properly or the member is protected from regulators.".format(ctx.message.author.mention))        
+        await discord.bot.say("🛑 {} unable to moderate user. Either you failed to tag the user properly or the member is protected from regulators.".format(ctx.message.author.mention))

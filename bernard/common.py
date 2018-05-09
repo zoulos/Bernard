@@ -1,5 +1,4 @@
-from . import config
-
+import bernard.config as config
 import datetime
 import time
 import json
@@ -44,7 +43,7 @@ def datetimeObjectToString(timestamp):
 def isDiscordMainServer(server):
     if server is None:
         return False
-        
+
     if server.id == config.cfg['discord']['server']:
         return True
 
@@ -98,7 +97,7 @@ async def getJSON(url, tmout=5, hdrs=None):
             async with session.get(url, timeout=tmout, headers=hdrs) as r:
                 logger.info("common.getJSON() returned HTTP/{}".format(r.status))
                 if r.status == 200:
-                    if "application/json" in r.headers['Content-Type']: 
+                    if "application/json" in r.headers['Content-Type']:
                         ret = await r.json()
                         return ret
                     else:

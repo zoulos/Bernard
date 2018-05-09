@@ -1,7 +1,6 @@
-from . import config
-from . import common
-from . import discord
-
+import bernard.config as config
+import bernard.common as common
+import bernard.discord as discord
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,7 +23,7 @@ async def isowner(ctx):
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
 async def isadmin(ctx):
     if common.isDiscordAdministrator(ctx.message.author):
-        await discord.bot.say("Somehow Destiny let you have administrator in here... {0.message.author.mention}".format(ctx)) 
+        await discord.bot.say("Somehow Destiny let you have administrator in here... {0.message.author.mention}".format(ctx))
 
 #!isregulator = sanity check for regulators to confirm their power level
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
