@@ -78,9 +78,9 @@ async def system(ctx):
 
         emd = discord.embeds.Embed(color=0xE79015)
         emd.add_field(name="Discord.py Version", value=discord.discord.__version__)
-        emd.add_field(name="Python Version", value=platform.python_build()[0])
+        emd.add_field(name="Python Version", value=platform.python_version())
         emd.add_field(name="Host", value="{} ({}) [{}] hostname '{}'".format(platform.system(), platform.platform(), sys.platform, platform.node()))
-        emd.add_field(name="Process", value="PID: {} User: {:.2f}% System: {:.2f}%".format(os.getpid(), load[0]*10, load[1]*10))
+        emd.add_field(name="Process", value="PID: {} User: {:.2f}% System: {:.2f}%".format(os.getpid(), load[0], load[1]))
         emd.add_field(name="Git Revision", value="`{}@{}` Remote: {}".format(gitcommit.upper(), gitbranch.title(), gitremote))
         await discord.bot.say(embed=emd)
 
@@ -120,7 +120,6 @@ async def stats(ctx, more=None):
     if more == None:
         #get the avg without numpy because I dont want to import useless shit but will do it anyway in 3 months <-- haha I did exactly this check git
         emd = discord.embeds.Embed(color=0xE79015)
-        emd.set_thumbnail(url='https://cdn.discordapp.com/emojis/403034738979241984.png')
         emd.add_field(name="Bot Uptime", value=analytics.getRuntime())
         emd.add_field(name="Messages Processed", value="{:,d}".format(analytics.messages_processed))
         emd.add_field(name="Unique Users", value="{:,d}".format(len(analytics.messages_processed_users)))
