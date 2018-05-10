@@ -189,11 +189,11 @@ async def blacklist(ctx, command: str, domain: str, policy="delete"):
         dbres = database.cursor.fetchone()
         if dbres != None:
             emd = discord.embeds.Embed(title='Auditing information for domain: "{0}"'.format(domain), color=0xE79015)
-            emd.add_field(name="Domain", value=dbres[0])
-            emd.add_field(name="Action", value=dbres[1].title())
-            emd.add_field(name="Hits", value="{:,}".format(dbres[4]))
-            emd.add_field(name="Added On", value="{} UTC".format(datetime.datetime.utcfromtimestamp(dbres[3]).isoformat()), inline=True)
-            emd.add_field(name="Added By", value=dbres[2], inline=True)
+            emd.add_field(name="Domain", value=dbres['domain'])
+            emd.add_field(name="Action", value=dbres['action'].title())
+            emd.add_field(name="Hits", value="{:,}".format(dbres['hits']))
+            emd.add_field(name="Added On", value="{} UTC".format(datetime.datetime.utcfromtimestamp(dbres['added_when']).isoformat()), inline=True)
+            emd.add_field(name="Added By", value=dbres['added_by'], inline=True)
             await discord.bot.say(embed=emd)
         else:
             await discord.bot.say("⚠️ {0.message.author.mention} Domain not found in database.".format(ctx))

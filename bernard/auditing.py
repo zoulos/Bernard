@@ -109,7 +109,7 @@ async def blacklisted_domains(msg):
             logger.warn("blacklisted_domains() user ban from domain {0[domain]} for user {1.author} ({1.author.id})".format(dbres, msg))
             await discord.bot.delete_message(msg)
             await discord.bot.send_message(msg.channel, "🛑 {0.author.mention} that domain `{1[domain]}` is prohibited here with the policy to **BAN** poster. Banning...".format(msg, dbres))
-            await discord.bot.ban(msg.author, delete_message_days=0)
+            await common.ban_verbose(msg.author, "BOT_AUTOBAN_FOR_BLACKLISTED_DOMAIN - 'Domain:{0[domain]} URL:{1}'".format(dbres, url))
             journal.update_journal_event(module=__name__, event="AUDIT_DOMAIN_BAN", userid=msg.author.id, eventid=msg.id, contents=dbres['domain'])
             return
         else:
