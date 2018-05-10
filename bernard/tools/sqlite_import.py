@@ -25,7 +25,7 @@ sqlite_cursor = sqlite_conn.cursor()
 
 #get everything from journal_events
 print("----- STARTING EVENTS -----")
-rows = sqlite_cursor.execute("SELECT * From journal_events ORDER BY time ASC LIMIT 50")
+rows = sqlite_cursor.execute("SELECT * From journal_events ORDER BY time ASC")
 for row in rows:
     print(row)
     mariadb_cursor.execute('INSERT INTO journal_events'
@@ -36,7 +36,7 @@ for row in rows:
 
 #get everything from journal_regualators
 print("----- STARTING REGULATORS -----")
-rows = sqlite_cursor.execute("SELECT * From journal_regulators ORDER BY time ASC LIMIT 50")
+rows = sqlite_cursor.execute("SELECT * From journal_regulators ORDER BY time ASC")
 for row in rows:
     print(row)
     mariadb_cursor.execute('INSERT INTO journal_regulators'
@@ -46,7 +46,7 @@ for row in rows:
     mariadb_conn.commit()
 
 print("----- STARTING SUBS -----")
-rows = sqlite_cursor.execute("SELECT * From subscribers LIMIT 50")
+rows = sqlite_cursor.execute("SELECT * From subscribers")
 for row in rows:
     print(row)
     mariadb_cursor.execute('INSERT INTO subscribers'
