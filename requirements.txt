@@ -1,6 +1,7 @@
-tldextract
-tabulate
-numpy
-antispam
-aiohttp
-discord.py
+tldextract==2.2.0
+tabulate==0.8.2
+numpy>=1.12.1
+antispam>=0.0.10
+aiohttp>=1.0.5
+discord.py==0.16.12
+mysql-connector>=2.1.6

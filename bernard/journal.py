@@ -23,24 +23,22 @@ async def journal(ctx, user: str):
             member = ctx.message.server.get_member_named(user)
 
     if member is None:
-        database.dbCursor.execute('''SELECT * from journal_events WHERE userid=? ORDER BY time DESC LIMIT 5''', (user,))
+        database.cursor.execute('SELECT * from journal_events WHERE userid=%s ORDER BY time DESC LIMIT 5', (user,))
         emd = discord.embeds.Embed(title='Last 5 events for ({0})'.format(user), color=0xE79015)
     else:
-        database.dbCursor.execute('''SELECT * from journal_events WHERE userid=? ORDER BY time DESC LIMIT 5''', (member.id,))
+        database.cursor.execute('SELECT * from journal_events WHERE userid=%s ORDER BY time DESC LIMIT 5', (member.id,))
         emd = discord.embeds.Embed(title='Last 5 events for "{0.name}" ({0.id})'.format(member), color=0xE79015)
 
-    dbres = database.dbCursor.fetchall()
+    dbres = database.cursor.fetchall()
 
     if len(dbres) == 0:
         await discord.bot.say("Not found in my journal :(")
         return
     else:
         for row in dbres:
-            emd.add_field(inline=False,name="{}".format(datetime.fromtimestamp(int(row[2])).isoformat()), value="{0[1]} Results: {0[5]}\n".format(row))
+            emd.add_field(inline=False,name="{}".format(datetime.fromtimestamp(float(row['time'])).isoformat()), value="{0[module]} Results: {0[contents]}\n".format(row))
         await discord.bot.say(embed=emd)
 
-
-#CREATE TABLE "journal_jobs" ( `jobid` INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, `module` TEXT, `job` TEXT, `time` INTEGER, `runtime` INTEGER, `result` TEXT )
 def update_journal_job(**kwargs):
     module = kwargs['module']
     job = kwargs['job']
@@ -48,10 +46,12 @@ def update_journal_job(**kwargs):
     result = kwargs['result']
     runtime = round(time.time() - start, 4)
 
-    database.dbCursor.execute('''INSERT OR IGNORE INTO journal_jobs(module, job, time, runtime, result) VALUES(?,?,?,?,?)''', (module, job, time.time(), runtime, result))
-    database.dbConn.commit()
+    database.cursor.execute('INSERT INTO journal_jobs'
+                            '(module, job, time, runtime, result)'
+                            'VALUES (%s,%s,%s,%s,%s)',
+                            (module, job, time.time(), runtime, result))
+    database.connection.commit()
 
-#CREATE TABLE `journal_events` ( `jobid` INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, `module` TEXT, `event` TEXT, `userid` TEXT, `eventid` TEXT UNIQUE, `contents` TEXT )
 def update_journal_event(**kwargs):
     module = kwargs['module']
     event = kwargs['event']
@@ -62,10 +62,12 @@ def update_journal_event(**kwargs):
         eventid = None
     contents = kwargs['contents']
 
-    database.dbCursor.execute('''INSERT OR IGNORE INTO journal_events(module, event, time, userid, eventid, contents) VALUES(?,?,?,?,?,?)''', (module, event, time.time(), userid, eventid, contents))
-    database.dbConn.commit()
+    database.cursor.execute('INSERT INTO journal_events'
+                            '(module, event, time, userid, eventid, contents)'
+                            'VALUES (%s,%s,%s,%s,%s,%s)',
+                            (module, event, time.time(), userid, eventid, contents))
+    database.connection.commit()
 
-#CREATE TABLE "journal_regulators" ( `id_invoker` TEXT, `id_targeted` TEXT, `id_message` TEXT, `action` TEXT, `time` INTEGER, `event` INTEGER )
 def update_journal_regulator(**kwargs):
     invoker = kwargs['invoker']
     target = kwargs['target']
@@ -76,5 +78,8 @@ def update_journal_regulator(**kwargs):
     except KeyError:
         message = None
 
-    database.dbCursor.execute('''INSERT OR IGNORE INTO journal_regulators(id_invoker, id_targeted, id_message, action, time, event) VALUES(?,?,?,?,?,?)''', (invoker, target, eventdata, action, time.time(), message))
-    database.dbConn.commit()
+    database.cursor.execute('INSERT INTO journal_regulators'
+                            '(id_invoker, id_targeted, id_message, action, time, event)'
+                            'VALUES (%s,%s,%s,%s,%s,%s)',
+                            (invoker, target, eventdata, action, time.time(), message))
+    database.connection.commit()

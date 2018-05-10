@@ -18,8 +18,10 @@
 		"messagecache":10000,
 		"debug":0,
 		"database":{
-			"sqlite":"bernard.db",
-			"timeout":1
+			"server":"127.0.0.1",
+			"username":"bernard",
+			"password":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			"database":"bernard"
 		}
 	},
 

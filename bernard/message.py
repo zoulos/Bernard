@@ -1,7 +1,6 @@
 import bernard.config as config
 import bernard.common as common
 import bernard.discord as discord
-import bernard.database as database
 import bernard.auditing as auditing
 import bernard.analytics as analytics
 import bernard.antispam as antispam

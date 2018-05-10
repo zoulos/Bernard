@@ -39,7 +39,7 @@ async def on_ready():
     logger.info('Setting internal bot_jobs_ready flag to True')
     bot_jobs_ready = True
 
-if config.cfg['bernard']['debug']:
+if config.cfg['bernard']['debug'] is False:
     @bot.event
     async def on_command_error(error, ctx):
         logger.info("Uncaught command triggered: \"{0}\" {1}".format(error, ctx))

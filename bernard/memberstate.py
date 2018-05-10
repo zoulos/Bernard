@@ -24,13 +24,16 @@ async def on_member_join(user):
     invite = await invites.on_member_join_attempt_invite_source(user)
 
     #if the user is retroactively banned, handle it and issue the ban
-    database.dbCursor.execute('''SELECT * FROM bans_retroactive WHERE id=?''', (user.id,))
-    retdb = database.dbCursor.fetchone()
+    database.cursor.execute('SELECT * FROM bans_retroactive WHERE id=%s', (user.id,))
+    retdb = database.cursor.fetchone()
+
+    print(user.id, retdb)
+
     if retdb is not None:
         ignore_depart.append(user.id)
-        await common.ban_verbose(user, "RETROACTIVE_BAN_VIA_BOT_DB - '{}'".format(retdb[2]))
-        await discord.bot.send_message(discord.mod_channel(),"{0} **Retroactive Ban:** {1.mention} (Name:`{1.name}#{1.discriminator}` ID:`{1.id}` REASON: `{2}`)".format(common.bernardUTCTimeNow(), user, retdb[2]))
-        journal.update_journal_event(module=__name__, event="RETROACTIVE_BAN", userid=user.id, contents=retdb[2])
+        await common.ban_verbose(user, "RETROACTIVE_BAN_VIA_BOT_DB - '{}'".format(retdb['reason']))
+        await discord.bot.send_message(discord.mod_channel(),"{0} **Retroactive Ban:** {1.mention} (Name:`{1.name}#{1.discriminator}` ID:`{1.id}` REASON: `{2}`)".format(common.bernardUTCTimeNow(), user, retdb['reason']))
+        journal.update_journal_event(module=__name__, event="RETROACTIVE_BAN", userid=user.id, contents=retdb['reason'])
         return
 
     ##send the message to the admin defined channel
@@ -102,13 +105,13 @@ async def on_member_unban(server, user):
     await discord.bot.send_message(discord.mod_channel(),"{0} **Unbanned User:** {1.mention} (Name:`{1.name}#{1.discriminator}` ID:`{1.id}`)".format(common.bernardUTCTimeNow(), user))
 
     #check if the user was retroactively rebanned, if they were remove from said list.
-    database.dbCursor.execute('SELECT * FROM bans_retroactive WHERE id=?', (user.id,))
-    retdb = database.dbCursor.fetchone()
+    database.cursor.execute('SELECT * FROM bans_retroactive WHERE id=%s', (user.id,))
+    retdb = database.cursor.fetchone()
     if retdb is not None:
-        database.dbCursor.execute('DELETE FROM bans_retroactive WHERE id=?', (user.id,))
-        database.dbConn.commit()
+        database.cursor.execute('DELETE FROM bans_retroactive WHERE id=%s', (user.id,))
+        database.connection.commit()
         await discord.bot.send_message(discord.mod_channel(),"{0} **Retroactive Unban:** {1.mention} (Name:`{1.name}#{1.discriminator}` ID:`{1.id}`)".format(common.bernardUTCTimeNow(), user))
-        journal.update_journal_event(module=__name__, event="RETROACTIVE_UNBAN", userid=user.id, contents=retdb[2])
+        journal.update_journal_event(module=__name__, event="RETROACTIVE_UNBAN", userid=user.id, contents=retdb['reason'])
 
     #capture the event in the internal log
     journal.update_journal_event(module=__name__, event="ON_MEMBER_UNBAN", userid=user.id, contents="{0.name}#{0.discriminator}".format(user))

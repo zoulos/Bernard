@@ -2,25 +2,24 @@ import bernard.config as config
 import sqlite3
 import logging
 import time
+import mysql.connector as mariadb
 
 logger = logging.getLogger(__name__)
 logger.info("loading...")
 
-#sqlite
-dbConn = sqlite3.connect(config.cfg['bernard']['database']['sqlite'], check_same_thread=False, timeout=config.cfg['bernard']['database']['timeout'])
-dbCursor = dbConn.cursor()
+#mariadb
+connection = mariadb.connect(
+    host=config.cfg['bernard']['database']['server'],
+    user=config.cfg['bernard']['database']['username'],
+    password=config.cfg['bernard']['database']['password'],
+    database=config.cfg['bernard']['database']['database'])
+
+cursor = connection.cursor(dictionary=True, buffered=True)
 
 #check if the db is locked
-def check_db_lock():
-    try:
-        dbCursor.execute("SELECT * FROM journal_jobs")
-        result = dbCursor.fetchall()
-
-        dbCursor.execute('INSERT INTO journal_jobs(module, job, time, runtime, result) VALUES(?,?,?,?,?)', (__name__, "sql_health", time.time(), 0, "OK"))
-        dbConn.commit()
-
-    except sqlite3.OperationalError:
-        logger.critical("Unable to start bot. Unrecoverable error in database locked.")
+def check_db_ready():
+    if connection.is_connected() is False:
+        logger.critical("Unable to start bot: MySQL/MariaDB is not connected. Halting bot.")
         exit()
 
-check_db_lock()
+check_db_ready()

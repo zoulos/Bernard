@@ -5,6 +5,7 @@ import bernard.database as database
 import bernard.journal as journal
 import logging
 import tldextract
+import re
 
 logger = logging.getLogger(__name__)
 logger.info("loading...")
@@ -77,39 +78,39 @@ async def blacklisted_domains(msg):
         domain = "{0.domain}.{0.suffix}".format(tldext)
 
         #lookup the tld in the db
-        database.dbCursor.execute('SELECT * FROM auditing_blacklisted_domains WHERE domain=?', (domain.lower(),))
-        dbres = database.dbCursor.fetchone()
+        database.cursor.execute('SELECT * FROM auditing_blacklisted_domains WHERE domain=%s', (domain.lower(),))
+        dbres = database.cursor.fetchone()
 
         #if we dont find the domain just move along
         if dbres == None:
             continue
 
         #up the hit counter in the DB
-        database.dbCursor.execute('UPDATE auditing_blacklisted_domains SET hits=? WHERE domain=?', (dbres[4]+1,domain))
-        database.dbConn.commit()
+        database.cursor.execute('UPDATE auditing_blacklisted_domains SET hits=%s WHERE domain=%s', (dbres['hits']+1,domain))
+        database.connection.commit()
 
         #if we found a domain lets act on it | methods audit / delete / kick / ban
-        if dbres[1] == "audit":
-            logger.info("Domain audit of user {0.author} blacklisted_domains() domain {1[0]} found".format(msg, dbres))
-        elif dbres[1] == "delete":
-            logger.warn("blacklisted_domains() message delete from domain {0[0]} for user {1.author} ({1.author.id})".format(dbres, msg))
+        if dbres['action'] == "audit":
+            logger.info("Domain audit of user {0.author} blacklisted_domains() domain {1[domain]} found".format(msg, dbres))
+        elif dbres['action'] == "delete":
+            logger.warn("blacklisted_domains() message delete from domain {0[domain]} for user {1.author} ({1.author.id})".format(dbres, msg))
             await discord.bot.delete_message(msg)
-            await discord.bot.send_message(msg.channel, "⚠️ {0.author.mention} that domain `{1[0]}` is prohibited here.".format(msg, dbres))
-            journal.update_journal_event(module=__name__, event="AUDIT_DOMAIN_DELETE", userid=msg.author.id, eventid=msg.id, contents=dbres[0])
+            await discord.bot.send_message(msg.channel, "⚠️ {0.author.mention} that domain `{1[domain]}` is prohibited here.".format(msg, dbres))
+            journal.update_journal_event(module=__name__, event="AUDIT_DOMAIN_DELETE", userid=msg.author.id, eventid=msg.id, contents=dbres['domain'])
             return
-        elif dbres[1] == "kick":
-            logger.warn("blacklisted_domains() user kick from domain {0[0]} for user {1.author} ({1.author.id})".format(dbres, msg))
+        elif dbres['action'] == "kick":
+            logger.warn("blacklisted_domains() user kick from domain {0[domain]} for user {1.author} ({1.author.id})".format(dbres, msg))
             await discord.bot.delete_message(msg)
-            await discord.bot.send_message(msg.channel, "🛑 {0.author.mention} that domain `{1[0]}` is prohibited here with the policy to kick poster. Kicking...".format(msg, dbres))
+            await discord.bot.send_message(msg.channel, "🛑 {0.author.mention} that domain `{1[domain]}` is prohibited here with the policy to kick poster. Kicking...".format(msg, dbres))
             await discord.bot.kick(msg.author)
-            journal.update_journal_event(module=__name__, event="AUDIT_DOMAIN_KICK", userid=msg.author.id, eventid=msg.id, contents=dbres[0])
+            journal.update_journal_event(module=__name__, event="AUDIT_DOMAIN_KICK", userid=msg.author.id, eventid=msg.id, contents=dbres['domain'])
             return
-        elif dbres[1] == "ban":
-            logger.warn("blacklisted_domains() user ban from domain {0[0]} for user {1.author} ({1.author.id})".format(dbres, msg))
+        elif dbres['action'] == "ban":
+            logger.warn("blacklisted_domains() user ban from domain {0[domain]} for user {1.author} ({1.author.id})".format(dbres, msg))
             await discord.bot.delete_message(msg)
-            await discord.bot.send_message(msg.channel, "🛑 {0.author.mention} that domain `{1[0]}` is prohibited here with the policy to **BAN** poster. Banning...".format(msg, dbres))
+            await discord.bot.send_message(msg.channel, "🛑 {0.author.mention} that domain `{1[domain]}` is prohibited here with the policy to **BAN** poster. Banning...".format(msg, dbres))
             await discord.bot.ban(msg.author, delete_message_days=0)
-            journal.update_journal_event(module=__name__, event="AUDIT_DOMAIN_BAN", userid=msg.author.id, eventid=msg.id, contents=dbres[0])
+            journal.update_journal_event(module=__name__, event="AUDIT_DOMAIN_BAN", userid=msg.author.id, eventid=msg.id, contents=dbres['domain'])
             return
         else:
-            logger.error("Unknown action attempted in blacklisted_domains() while handling a blacklisted domain {0[1]} method {0[0]}".format(dbres))
+            logger.error("Unknown action attempted in blacklisted_domains() while handling a blacklisted domain {0[domain]} method {0[action]}".format(dbres))

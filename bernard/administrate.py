@@ -40,24 +40,24 @@ async def run(ctx, *, msg: str):
 async def sql(ctx, *, sql: str):
     if common.isDiscordBotOwner(ctx.message.author.id):
         try:
-            database.dbCursor.execute(sql) #dont ever do this anywhere else VERY bad and will fuck your day up
+            database.cursor.execute(sql) #dont ever do this anywhere else VERY bad and will fuck your day up
         except Exception as e:
             await discord.bot.say("```{}```".format(e))
             return
 
-        dbres = database.dbCursor.fetchall()
+        dbres = database.cursor.fetchall()
         if len(dbres) is 0:
             await discord.bot.say("```DB returned zero results.```")
             return
 
-        #we have to get the column names then make a list of them. Then convert the list to a tuple and add it to the front of the db list. Wow.
-        column_names = []
-        for tb in database.dbCursor.description:
-            column_names.append(tb[0])
-        dbres.insert(0,tuple(column_names))
+        columns = []
+        columns.append(list(dbres[0].keys())) #this gets the header for tabulate
+
+        for res in dbres:
+            columns.append(list(res.values())) #this builds the rows of the results
 
         #tabulate this into a string https://pypi.python.org/pypi/tabulate
-        postdb = tabulate(dbres, headers="firstrow")
+        postdb = tabulate(columns, headers="firstrow")
 
         #check the length
         if len(postdb) >= 1990:
@@ -151,43 +151,43 @@ async def blacklist(ctx, command: str, domain: str, policy="delete"):
         return
 
     if policy not in ['audit','delete','kick','ban']:
-        await discord.bot.say("⚠️ {0.message.author.mention} Invalid policy! Options `audit | delete | kick | ban`".format(ctx))
+        await discord.bot.say("⚠️ {0.message.author.mention} Invalid policy! Options `audit | remove | kick | ban`".format(ctx))
         return
 
     if command == "add":
         #add a new domain to the DB
-        database.dbCursor.execute('''SELECT * FROM auditing_blacklisted_domains WHERE domain=?''', (domain,))
-        dbres = database.dbCursor.fetchone()
+        database.cursor.execute('SELECT * FROM auditing_blacklisted_domains WHERE domain=%s', (domain,))
+        dbres = database.cursor.fetchone()
         if dbres == None:
-            database.dbCursor.execute('''INSERT OR IGNORE INTO auditing_blacklisted_domains(domain, action, added_by, added_when) VALUES(?,?,?,?)''', (domain.lower(), policy.lower(), ctx.message.author.name, int(datetime.datetime.utcnow().timestamp())))
-            database.dbConn.commit()
+            database.cursor.execute('INSERT INTO auditing_blacklisted_domains(domain, action, added_by, added_when) VALUES(%s,%s,%s,%s)', (domain.lower(), policy.lower(), ctx.message.author.id, int(datetime.datetime.utcnow().timestamp())))
+            database.connection.commit()
             await discord.bot.say("✔️ {0.message.author.mention} Domain `{1}` added with the policy: **{2}**".format(ctx, domain, policy.title()))
         else:
             await discord.bot.say("⚠️ {0.message.author.mention} Unable to add `{1}` added with the policy: **{2}** domain already exits!".format(ctx, domain, policy.title()))
     elif command == "remove":
         #delete a domain from the DB
-        database.dbCursor.execute('''SELECT * FROM auditing_blacklisted_domains WHERE domain=?''', (domain,))
-        dbres = database.dbCursor.fetchone()
+        database.cursor.execute('SELECT * FROM auditing_blacklisted_domains WHERE domain=%s', (domain,))
+        dbres = database.cursor.fetchone()
         if dbres != None:
-            database.dbCursor.execute('''DELETE FROM auditing_blacklisted_domains WHERE domain=?''', (domain,))
-            database.dbConn.commit()
+            database.cursor.execute('DELETE FROM auditing_blacklisted_domains WHERE domain=%s', (domain,))
+            database.connection.commit()
             await discord.bot.say("✔️ {0.message.author.mention} Domain `{1}` removed!".format(ctx, domain))
         else:
             await discord.bot.say("⚠️ {0.message.author.mention} Unable to remove `{1}` domain does not exist!".format(ctx, domain))
     elif command == "update":
         #update an existing domain with new policy
-        database.dbCursor.execute('''SELECT * FROM auditing_blacklisted_domains WHERE domain=?''', (domain,))
-        dbres = database.dbCursor.fetchone()
+        database.cursor.execute('SELECT * FROM auditing_blacklisted_domains WHERE domain=%s', (domain,))
+        dbres = database.cursor.fetchone()
         if dbres != None:
-            database.dbCursor.execute('''UPDATE auditing_blacklisted_domains SET action=? WHERE domain=?''', (policy, domain))
-            database.dbConn.commit()
-            await discord.bot.say("✔️ {0.message.author.mention} Domain `{1}` policy updated! Was **{2}** now **{3}**".format(ctx, domain, dbres[1].title(), policy.title()))
+            database.cursor.execute('UPDATE auditing_blacklisted_domains SET action=%s WHERE domain=%s', (policy, domain))
+            database.connection.commit()
+            await discord.bot.say("✔️ {0.message.author.mention} Domain `{1}` policy updated! Was **{2}** now **{3}**".format(ctx, domain, dbres['action'].title(), policy.title()))
         else:
             await discord.bot.say("⚠️ {0.message.author.mention} Unable to modify `{1}` domain does not exist!".format(ctx, domain))
     elif command == "info":
         #display an embed with the stats
-        database.dbCursor.execute('''SELECT * FROM auditing_blacklisted_domains WHERE domain=?''', (domain,))
-        dbres = database.dbCursor.fetchone()
+        database.cursor.execute('SELECT * FROM auditing_blacklisted_domains WHERE domain=%s', (domain,))
+        dbres = database.cursor.fetchone()
         if dbres != None:
             emd = discord.embeds.Embed(title='Auditing information for domain: "{0}"'.format(domain), color=0xE79015)
             emd.add_field(name="Domain", value=dbres[0])

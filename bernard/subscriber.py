@@ -87,11 +87,14 @@ class subscriber_update:
         self.expires_day = int(time.strftime('%j', time.gmtime(self.expires))) + config.cfg['subscriber']['settings']['grace_days']
 
         #check the db to see if this is an update or an insert
-        database.dbCursor.execute('SELECT * FROM subscribers WHERE userid=?', (self.user.id,))
-        existing = database.dbCursor.fetchone()
+        database.cursor.execute('SELECT * FROM subscribers WHERE userid=%s', (self.user.id,))
+        existing = database.cursor.fetchone()
 
         if existing is None:
-            database.dbCursor.execute('INSERT INTO subscribers(userid, roleid, tier, last_updated, expires_epoch, expires_day) VALUES(?,?,?,?,?,?)', (self.user.id, self.roleid, self.feature, time.time(), self.expires, self.expires_day))
+            database.cursor.execute('INSERT INTO subscribers'
+                                    '(userid, roleid, tier, last_updated, expires_epoch, expires_day)'
+                                    'VALUES (%s,%s,%s,%s,%s,%s) ',
+                                    (self.user.id, self.roleid, self.feature, time.time(), self.expires, self.expires_day))
             logger.info("Adding new subscriber {0} with {1} expires day {2} ".format(self.user.name, self.feature, self.expires_day))
             journal.update_journal_event(module=__name__, event="SUBCRIBER_NEW", userid=self.user.id, contents=self.expires_day)
 
@@ -99,15 +102,15 @@ class subscriber_update:
             await discord.bot.add_roles(self.user, self.role)
             self.result = "{0.mention} Subscrption added! {1} with {2} days until revocation.".format(self.user, self.feature, self.expires_day - self.today)
 
-            database.dbConn.commit()
+            database.connection.commit()
             return
         else:
             logger.info("Updating existing subscriber {0}".format(self.user.name))
             #if the new role doesnt match the old one, remove the old role first then add the new one, otherwise same just update DB
-            if existing[2] != self.feature:
-                logger.info("{0} old role {1} new role {2}".format(self.user.name, existing[2], self.feature))
+            if existing['tier'] != self.feature:
+                logger.info("{0} old role {1} new role {2}".format(self.user.name, existing['tier'], self.feature))
                 #remove the old role
-                self.oldrole = discord.discord.Role(id=existing[1], server=config.cfg['discord']['server'])
+                self.oldrole = discord.discord.Role(id=existing['roleid'], server=config.cfg['discord']['server'])
                 await discord.bot.remove_roles(self.user, self.oldrole)
 
                 #turns out if you send them right away theres a race condition and the removed role comes back lol
@@ -116,18 +119,19 @@ class subscriber_update:
                 #add the new role
                 self.newrole = discord.discord.Role(id=self.roleid, server=config.cfg['discord']['server'])
                 await discord.bot.add_roles(self.user, self.newrole)
-                self.result = "{0.mention} Subscrption updated! was {1}, is now {2} with {3} days until revocation.".format(self.user, existing[1], self.feature, self.expires_day - self.today)
+                self.result = "{0.mention} Subscrption updated! was {1}, is now {2} with {3} days until revocation.".format(self.user, existing['roleid'], self.feature, self.expires_day - self.today)
 
             #update the db
             self.result = "{0.mention} Nothing has changed. {1} with {2} days until revocation.".format(self.user, self.feature, self.expires_day - self.today)
-            database.dbCursor.execute('UPDATE subscribers SET roleid=?, tier=?, last_updated=?, expires_epoch=?, expires_day=? WHERE userid=?', (self.roleid, self.feature, time.time(), self.expires, self.expires_day, self.user.id))
-            database.dbConn.commit()
+            database.cursor.execute('UPDATE subscribers SET roleid=%s, tier=%s, last_updated=%s, expires_epoch=%s, expires_day=%s WHERE userid=%s',
+                                    (self.roleid, self.feature, time.time(), self.expires, self.expires_day, self.user.id))
+            database.connection.commit()
 
     async def audit_subscriber(self):
         self.audit_hasroles = []
         #the API call is what the user should have, the DB is what we think they should have. Anything else is Fake News
-        database.dbCursor.execute('SELECT * FROM subscribers WHERE userid=?', (self.user.id,))
-        existing = database.dbCursor.fetchone()
+        database.cursor.execute('SELECT * FROM subscribers WHERE userid=%s', (self.user.id,))
+        existing = database.cursor.fetchone()
 
         #self.user.roles = list of dicord.Roles
         #run through the roles assigned and build a list
@@ -160,15 +164,15 @@ class subscriber_update:
         #the user should only have 1 feature role at most. If they have more we need to clean up/find why
         if len(self.audit_foundroles) == 1:
             #this should return true if the database has the same role as they are assigned in discord
-            if existing[1] == self.audit_foundroles[0]:
+            if existing['roleid'] == self.audit_foundroles[0]:
                 logger.info("{0.name} {0.id} has the correct roles.".format(self.user))
                 self.result = "{0.mention} has the correct roles assigned 👏".format(self.user)
                 return
         else:
             try:
-                self.audit_foundroles.remove(existing[1])
+                self.audit_foundroles.remove(existing['roleid'])
             except:
-                logger.warn("{0.name} {0.id} had an incorrect role from database and was not in applied list. Something Broke to remove {1}.".format(self.user, existing[1]))
+                logger.warn("{0.name} {0.id} had an incorrect role from database and was not in applied list. Something Broke to remove {1}.".format(self.user, existing['roleid']))
 
             for role in self.audit_foundroles:
                 logger.info("{0.name} {0.id} has an incorrect role! Removing role {1}.".format(self.user, role))
@@ -180,8 +184,8 @@ class subscriber_update:
             return
 
     async def purge_expired(self):
-        database.dbCursor.execute('SELECT * FROM subscribers WHERE userid=?', (self.user.id,))
-        existing = database.dbCursor.fetchone()
+        database.cursor.execute('SELECT * FROM subscribers WHERE userid=%s', (self.user.id,))
+        existing = database.cursor.fetchone()
 
         #dont even care about people not in db
         if existing is None:
@@ -190,19 +194,19 @@ class subscriber_update:
             return
 
         #if today is over the expires_day, accounts for rounding by giving user another day of grace. Remove from DB only. audit_subscriber() will remove next run
-        if self.today > existing[5]:
-            database.dbCursor.execute('DELETE FROM subscribers WHERE userid=?', (self.user.id,))
-            database.dbConn.commit()
+        if self.today > existing['expires_day']:
+            database.cursor.execute('DELETE FROM subscribers WHERE userid=%s', (self.user.id,))
+            database.connection.commit()
             self.result = "{0.mention} sub expired. Removing DB entry :(".format(self.user)
             logger.info("{0.name} {0.id} sub expired. Removing DB entry :(".format(self.user))
 
 def on_member_remove_purgedb(user):
-    database.dbCursor.execute('SELECT * FROM subscribers WHERE userid=?', (user.id,))
-    existing = database.dbCursor.fetchone()
+    database.cursor.execute('SELECT * FROM subscribers WHERE userid=%s', (user.id,))
+    existing = database.cursor.fetchone()
 
     if existing is not None:
-        database.dbCursor.execute('DELETE FROM subscribers WHERE userid=?', (user.id,))
-        database.dbConn.commit()
+        database.cursor.execute('DELETE FROM subscribers WHERE userid=%s', (user.id,))
+        database.connection.commit()
         logger.info("{0.name} {0.id} leaving server with a subscription. Removing DB lookup.".format(user))
     else:
         logger.info("{0.name} {0.id} leaving server without a Subscrption. Nothing to do.".format(user))
