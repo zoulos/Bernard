@@ -85,6 +85,7 @@ async def system(ctx):
         emd.add_field(name="Python Version", value=platform.python_version())
         emd.add_field(name="Host", value="{} ({}) [{}] hostname '{}'".format(platform.system(), platform.platform(), sys.platform, platform.node()))
         emd.add_field(name="Process", value="PID: {0} Load: {1[0]} {1[1]} {1[2]} ({2} CPU)".format(os.getpid(), load, os.cpu_count()))
+        emd.add_field(name="SQL", value="Version:{0} Q/sec:{1[Queries per second avg]} Slow Queries:{1[Slow queries]}".format(database.connection.get_server_info(), database.connection.cmd_statistics()))
         emd.add_field(name="Git Revision", value="`{}@{}` Remote: {}".format(gitcommit.upper(), gitbranch.title(), gitremote))
         await discord.bot.say(embed=emd)
 
