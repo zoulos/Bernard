@@ -71,16 +71,20 @@ async def sql(ctx, *, sql: str):
 @admin.command(pass_context=True, hidden=True)
 async def system(ctx):
     if common.isDiscordAdministrator(ctx.message.author):
-        load = os.times()
         gitcommit = subprocess.check_output(['git','rev-parse','--short','HEAD']).decode(encoding='UTF-8').rstrip()
         gitbranch = subprocess.check_output(['git','rev-parse','--abbrev-ref','HEAD']).decode(encoding='UTF-8').rstrip()
         gitremote = subprocess.check_output(['git','config','--get','remote.origin.url']).decode(encoding='UTF-8').rstrip().replace(".git","")
+
+        try:
+            load = os.getloadavg()
+        except AttributeError:
+            load = (0,0,0) #Windows can not get *nix style load
 
         emd = discord.embeds.Embed(color=0xE79015)
         emd.add_field(name="Discord.py Version", value=discord.discord.__version__)
         emd.add_field(name="Python Version", value=platform.python_version())
         emd.add_field(name="Host", value="{} ({}) [{}] hostname '{}'".format(platform.system(), platform.platform(), sys.platform, platform.node()))
-        emd.add_field(name="Process", value="PID: {} User: {:.2f}% System: {:.2f}%".format(os.getpid(), load[0], load[1]))
+        emd.add_field(name="Process", value="PID: {0} Load: {1[0]} {1[1]} {1[2]} ({2} CPU)".format(os.getpid(), load, os.cpu_count()))
         emd.add_field(name="Git Revision", value="`{}@{}` Remote: {}".format(gitcommit.upper(), gitbranch.title(), gitremote))
         await discord.bot.say(embed=emd)
 
