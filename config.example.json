@@ -7,6 +7,13 @@
 		"twitch_managed_role":"403015184051994634"
 	},
 
+	"redundancy":{
+		"enable":0,
+		"role":"master",
+		"self_uid":"uuid4",
+		"partner_uid":"uuid4"
+	},
+
 	"bernard":{
 		"owner":"252869311545212928",
 		"administrators":"270091163686535179",

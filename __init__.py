@@ -7,6 +7,9 @@ logger.info("Attempting to start. I can't promise you I will work but I can sure
 #always import config, common, discord in that order or things will break
 import bernard.config
 import bernard.common
+
+import bernard.redundancy
+
 import bernard.discord
 import bernard.database
 import bernard.analytics

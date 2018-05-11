@@ -1,4 +1,5 @@
 import bernard.config as config
+import bernard.redundancy as redundancy
 import asyncio
 import discord
 import logging
@@ -20,6 +21,8 @@ async def on_ready():
     global bot_jobs_ready
     global default_server
     logger.info('Logged in as {0.user.name} ID:{0.user.id}'.format(bot))
+
+    await verify_primary()
 
     #make an object available of this Server
     default_server = bot.get_server(config.cfg['discord']['server'])
@@ -49,3 +52,36 @@ def objectFactory(snowflake):
 
 def mod_channel():
     return discord.Object(config.cfg['bernard']['channel'])
+
+async def update_heartbeat():
+    await bot.wait_until_ready()
+    while not bot.is_closed:
+        #update our own heartbeat
+        redundancy.update_heartbeat()
+
+        #if we are running as secondary poll for the master being available again
+        if config.cfg['redundancy']['role'] == "secondary":
+            partner = redundancy.get_partner_status(config.cfg['redundancy']['partner_uid'])
+            if partner['current_state'] == "RUNNING_PRIMARY":
+                logger.warn("Primary bot is detected to be back. Returning to STAY_SECONDARY state.")
+                redundancy.update_status("STAY_SECONDARY", config.cfg['redundancy']['self_uid'])
+                await bot.logout()
+
+        await asyncio.sleep(5)
+
+#background task to update ha status if enabled
+async def verify_primary():
+    if config.cfg['redundancy']['enable']:
+        #start heartbeating
+        bot.loop.create_task(update_heartbeat())
+
+        if redundancy.HA_STATUS == "RUNNING_PRIMARY":
+            return True
+        elif redundancy.HA_STATUS == "BECOME_PRIMARY":
+            #send a chat message the partner is looking for as a last resort before hitting runtime
+            logger.warn("Bot started as BECOME_PRIMARY. Trying last effort to verify primary before starting processing.")
+            await bot.send_message(mod_channel(), "HA started as BECOME_PRIMARY was preempted. {} is considered dead.".format(config.cfg['redundancy']['partner_uid']))
+            redundancy.update_status("RUNNING_SECONDARY", config.cfg['redundancy']['self_uid'])
+        elif redundancy.HA_STATUS == "STAY_SECONDARY":
+            #if we are supposed to be secondary, peace out and reload to pre bot state
+            await bot.logout()
