@@ -52,7 +52,7 @@ async def on_message(message):
 	if config.cfg['redundancy']['enable']:
 		#if we see our own UUID in the mod room, check our partner status to make sure we didnt get demoted
 		if config.cfg['redundancy']['self_uid'] in message.content:
-			status = get_partner_status(config.cfg['redundancy']['self_uid'])
+			status = redundancy.get_partner_status(config.cfg['redundancy']['self_uid'])
 			if status['current_state'] == "FAILING_PRIMARY":
 				await discord.bot.send_message(discord.mod_channel(),"<@{0}> CRITCAL (Primary): Secondary server started but the primary is still running! Setting secondary to FAILED_SECONDARY.".format(config.cfg['bernard']['owner']))
 				await discord.bot.send_message(discord.mod_channel(), "CRITICAL (Primary): Secondary server {0} is expected to shut down.".format(config.cfg['redundancy']['partner_uid']))
