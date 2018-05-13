@@ -4,6 +4,7 @@ import asyncio
 import discord
 import logging
 import subprocess
+import platform
 from discord.ext import commands
 from discord import embeds
 
@@ -81,7 +82,7 @@ async def verify_primary():
             #send a chat message the partner is looking for as a last resort before hitting runtime
             logger.warn("Bot started as BECOME_PRIMARY. Trying last effort to verify primary before starting processing.")
             redundancy.update_status("RUNNING_SECONDARY", config.cfg['redundancy']['self_uid'])
-            await bot.send_message(mod_channel(), "{0.user.mention} HA failover started! Secondary server is now RUNNING_SECONDARY. Partner {1} is at the last chance to announce itself as alive.".format(bot, config.cfg['redundancy']['partner_uid']))
+            await bot.send_message(mod_channel(), "<@{0}> HA failover started! Secondary server '{1}' is now RUNNING_SECONDARY. Partner {2} last chance to announce itself as alive.".format(config.cfg['bernard']['owner'], platform.node() ,config.cfg['redundancy']['partner_uid']))
         elif redundancy.HA_STATUS == "STAY_SECONDARY":
             #if we are supposed to be secondary, peace out and reload to pre bot state
             await bot.logout()

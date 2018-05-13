@@ -49,7 +49,7 @@ async def on_message(message):
 		analytics.rateLimitNewMessage(message.channel.id, analytics.getEventTime())
 
 	#handle high availibity checks
-	if config.cfg['redundancy']['enabled']:
+	if config.cfg['redundancy']['enable']:
 		#if we see our own UUID in the mod room, check our partner status to make sure we didnt get demoted
 		if config.cfg['redundancy']['self_uid'] in message.content:
 			status = get_partner_status(config.cfg['redundancy']['self_uid'])
