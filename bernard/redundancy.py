@@ -39,7 +39,7 @@ def follow_primary(uuid):
         return "BECOME_PRIMARY"
 
 def update_heartbeat():
-    database.cursor.execute("UPDATE ha SET last_heartbeat=%s, hostname=%s, WHERE uid=%s", (time.mktime(time.gmtime()), platform.node(), config.cfg['redundancy']['self_uid']))
+    database.cursor.execute("UPDATE ha SET last_heartbeat=%s, hostname=%s WHERE uid=%s", (time.mktime(time.gmtime()), platform.node(), config.cfg['redundancy']['self_uid']))
     database.connection.commit()
 
 def update_status(status, uuid):
