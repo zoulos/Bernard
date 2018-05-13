@@ -3,6 +3,7 @@ import bernard.database as database
 import logging
 import time
 import platform
+import subprocess
 
 logger = logging.getLogger(__name__)
 logger.info("loading...")
@@ -39,7 +40,8 @@ def follow_primary(uuid):
         return "BECOME_PRIMARY"
 
 def update_heartbeat():
-    database.cursor.execute("UPDATE ha SET last_heartbeat=%s, hostname=%s WHERE uid=%s", (time.mktime(time.gmtime()), platform.node(), config.cfg['redundancy']['self_uid']))
+    gitcommit = subprocess.check_output(['git','rev-parse','--short','HEAD']).decode(encoding='UTF-8').rstrip()
+    database.cursor.execute("UPDATE ha SET last_heartbeat=%s, hostname=%s, current_version=%s WHERE uid=%s", (time.mktime(time.gmtime()), platform.node(), gitcommit, config.cfg['redundancy']['self_uid']))
     database.connection.commit()
 
 def update_status(status, uuid):
