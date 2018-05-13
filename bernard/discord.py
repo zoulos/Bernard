@@ -65,7 +65,7 @@ async def update_heartbeat():
             partner = redundancy.get_partner_status(config.cfg['redundancy']['partner_uid'])
             if partner['current_state'] == "RUNNING_PRIMARY":
                 logger.warn("Primary bot is detected to be back. Returning to STAY_SECONDARY state.")
-                await bot.send_message(mod_channel(), "<@{0}> HA failover started! Secondary server '{1}' is entering STAY_SECONDARY.".format(config.cfg['bernard']['owner'], platform.node()]))
+                await bot.send_message(mod_channel(), "<@{0}> HA failover started! Primary server '{1}' is entering RUNNING_PRIMARY and signaling secondary to STAY_SECONDARY.".format(config.cfg['bernard']['owner'], platform.node()])
                 redundancy.update_status("STAY_SECONDARY", config.cfg['redundancy']['self_uid'])
                 await bot.logout()
 
