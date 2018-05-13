@@ -80,8 +80,8 @@ async def verify_primary():
         elif redundancy.HA_STATUS == "BECOME_PRIMARY":
             #send a chat message the partner is looking for as a last resort before hitting runtime
             logger.warn("Bot started as BECOME_PRIMARY. Trying last effort to verify primary before starting processing.")
-            await bot.send_message(mod_channel(), "HA started as BECOME_PRIMARY was preempted. {} is considered dead.".format(config.cfg['redundancy']['partner_uid']))
             redundancy.update_status("RUNNING_SECONDARY", config.cfg['redundancy']['self_uid'])
+            await bot.send_message(mod_channel(), "{0.user.mention} HA failover started! Secondary server is now RUNNING_SECONDARY. Partner {1} is at the last chance to announce itself as alive.".format(bot, config.cfg['redundancy']['partner_uid']))
         elif redundancy.HA_STATUS == "STAY_SECONDARY":
             #if we are supposed to be secondary, peace out and reload to pre bot state
             await bot.logout()

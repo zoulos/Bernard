@@ -2,6 +2,7 @@ import bernard.config as config
 import bernard.database as database
 import logging
 import time
+import platform
 
 logger = logging.getLogger(__name__)
 logger.info("loading...")
@@ -38,7 +39,7 @@ def follow_primary(uuid):
         return "BECOME_PRIMARY"
 
 def update_heartbeat():
-    database.cursor.execute("UPDATE ha SET last_heartbeat=%s WHERE uid=%s", (time.mktime(time.gmtime()), config.cfg['redundancy']['self_uid']))
+    database.cursor.execute("UPDATE ha SET last_heartbeat=%s, hostname=%s, WHERE uid=%s", (time.mktime(time.gmtime()), platform.node(), config.cfg['redundancy']['self_uid']))
     database.connection.commit()
 
 def update_status(status, uuid):
@@ -54,10 +55,15 @@ if config.cfg['redundancy']['role'] == "secondary":
         if HA_STATUS == "STAY_SECONDARY":
             update_heartbeat()
             time.sleep(10)
+        elif HA_STATUS == "FAILED_SECONDARY":
+            logger.critical("Bot was reset due to a potential split brain condition. Holding 6 hours attempting to restart.")
+            logger.critical(get_partner_status(config.cfg['redundancy']['self_uid']))
+            logger.critical(get_partner_status(config.cfg['redundancy']['partner_uid']))
+            time.sleep(60 * 60 * 6) #60 secs for 60 mins for 6 hours
         elif HA_STATUS == "BECOME_PRIMARY":
             update_status(HA_STATUS, config.cfg['redundancy']['self_uid'])
-            update_status("BECOME_SECONDARY", config.cfg['redundancy']['partner_uid'])
-            logger.info("HA_STATUS is now BECOME_PRIMARY. Leaving passive mode and attempting to enter an active state (bot should start)")
+            update_status("FAILING_PRIMARY", config.cfg['redundancy']['partner_uid'])
+            logger.info("HA_STATUS is now BECOME_PRIMARY. Leaving passive mode and attempting to enter an active state (bot should start here)")
             IS_PRIMARY = True
 elif config.cfg['redundancy']['role'] == "primary":
     IS_PRIMARY = True
