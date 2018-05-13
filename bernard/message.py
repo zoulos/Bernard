@@ -54,7 +54,7 @@ async def on_message(message):
 		if config.cfg['redundancy']['self_uid'] in message.content:
 			status = get_partner_status(config.cfg['redundancy']['self_uid'])
 			if status['current_state'] == "FAILING_PRIMARY":
-				await discord.bot.send_message(discord.mod_channel(),"{0} CRITCAL (Primary): Secondary server started but the primary is still running! Setting secondary to FAILED_SECONDARY.".format(config.cfg['bernard']['owner']))
+				await discord.bot.send_message(discord.mod_channel(),"<@{0}> CRITCAL (Primary): Secondary server started but the primary is still running! Setting secondary to FAILED_SECONDARY.".format(config.cfg['bernard']['owner']))
 				await discord.bot.send_message(discord.mod_channel(), "CRITICAL (Primary): Secondary server {0} is expected to shut down.".format(config.cfg['redundancy']['partner_uid']))
 				redundancy.update_status("RUNNING_MASTER", config.cfg['redundancy']['self_uid'])
 				redundancy.update_status("FAILING_SECONDARY", config.cfg['redundancy']['partner_uid'])
