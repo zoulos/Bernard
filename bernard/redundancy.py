@@ -25,7 +25,6 @@ def get_partner_status(uuid):
 
 def follow_primary(uuid):
     primary_db = get_partner_status(uuid)
-
     #if the bot is known as RUNNING_PRIMARY, lets confirm its health state. It should be updating its heartbeat within the minute
     if primary_db['current_state'] == "RUNNING_PRIMARY":
         last_alive = (time.mktime(time.gmtime()) - primary_db['last_heartbeat'])
@@ -38,6 +37,8 @@ def follow_primary(uuid):
     elif primary_db['current_state'] == "BECOME_SECONDARY":
         logger.warn("Primary node is requesting to become the secondary and relinquish primary control.")
         return "BECOME_PRIMARY"
+    else:
+        return "STAY_SECONDARY"
 
 def update_heartbeat():
     gitcommit = subprocess.check_output(['git','rev-parse','--short','HEAD']).decode(encoding='UTF-8').rstrip()
@@ -53,20 +54,24 @@ if config.cfg['redundancy']['role'] == "secondary":
     logger.warn("Bot starting as a secondary role in HA pair. Primary is set as {}".format(config.cfg['redundancy']['partner_uid']))
     IS_PRIMARY = False
     while IS_PRIMARY is False:
+        own_status = get_partner_status(config.cfg['redundancy']['self_uid'])
         HA_STATUS = follow_primary(config.cfg['redundancy']['partner_uid'])
         if HA_STATUS == "STAY_SECONDARY":
             update_heartbeat()
+            update_status("STAY_SECONDARY", config.cfg['redundancy']['self_uid'])
             time.sleep(10)
-        elif HA_STATUS == "FAILED_SECONDARY":
-            logger.critical("Bot was reset due to a potential split brain condition. Holding 6 hours attempting to restart.")
-            logger.critical(get_partner_status(config.cfg['redundancy']['self_uid']))
-            logger.critical(get_partner_status(config.cfg['redundancy']['partner_uid']))
-            time.sleep(60 * 60 * 6) #60 secs for 60 mins for 6 hours
         elif HA_STATUS == "BECOME_PRIMARY":
             update_status(HA_STATUS, config.cfg['redundancy']['self_uid'])
             update_status("FAILING_PRIMARY", config.cfg['redundancy']['partner_uid'])
             logger.info("HA_STATUS is now BECOME_PRIMARY. Leaving passive mode and attempting to enter an active state (bot should start here)")
             IS_PRIMARY = True
+
+        if own_status['current_state'] == "FAILED_SECONDARY":
+            logger.critical("Bot was reset due to a potential split brain condition. Dumping cluster info")
+            logger.critical(get_partner_status(config.cfg['redundancy']['self_uid']))
+            logger.critical(get_partner_status(config.cfg['redundancy']['partner_uid']))
+            time.sleep(60 * 60 * 6) #60 secs for 60 mins for 6 hours
+
 elif config.cfg['redundancy']['role'] == "primary":
     IS_PRIMARY = True
     HA_STATUS = "RUNNING_PRIMARY"

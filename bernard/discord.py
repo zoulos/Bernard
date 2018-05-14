@@ -65,7 +65,7 @@ async def update_heartbeat():
             partner = redundancy.get_partner_status(config.cfg['redundancy']['partner_uid'])
             if partner['current_state'] == "RUNNING_PRIMARY":
                 logger.warn("Primary bot is detected to be back. Returning to STAY_SECONDARY state.")
-                await bot.send_message(mod_channel(), "<@{0}> HA failover started! Secondary server '{1}' is entering STAY_SECONDARY as primary has returned.".format(config.cfg['bernard']['owner'], platform.node()))
+                await bot.send_message(mod_channel(), "HA failover started! Secondary server '{1}' is entering STAY_SECONDARY.".format(config.cfg['bernard']['owner'], platform.node()))
                 redundancy.update_status("STAY_SECONDARY", config.cfg['redundancy']['self_uid'])
                 await bot.logout()
 
@@ -77,9 +77,7 @@ async def verify_primary():
         #start heartbeating
         bot.loop.create_task(update_heartbeat())
 
-        if redundancy.HA_STATUS == "RUNNING_PRIMARY":
-            return True
-        elif redundancy.HA_STATUS == "BECOME_PRIMARY":
+        if redundancy.HA_STATUS == "BECOME_PRIMARY":
             #send a chat message the partner is looking for as a last resort before hitting runtime
             logger.warn("Bot started as BECOME_PRIMARY. Trying last effort to verify primary before starting processing.")
             redundancy.update_status("RUNNING_SECONDARY", config.cfg['redundancy']['self_uid'])
@@ -87,3 +85,6 @@ async def verify_primary():
         elif redundancy.HA_STATUS == "STAY_SECONDARY":
             #if we are supposed to be secondary, peace out and reload to pre bot state
             await bot.logout()
+
+        if redundancy.own_status['current_state'] == "FAILING_PRIMARY":
+            await bot.send_message(mod_channel(), "<@{0}> HA failover started! Primary server '{1}' is now RUNNING_PRIMARY. was FAILING_PRIMARY.".format(config.cfg['bernard']['owner'], platform.node()))
