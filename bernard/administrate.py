@@ -1,5 +1,6 @@
 import bernard.config as config
 import bernard.common as common
+import bernard.redundancy as redundancy
 import bernard.discord as discord
 import bernard.database as database
 import bernard.analytics as analytics
@@ -11,6 +12,7 @@ import asyncio
 import logging
 import datetime
 import platform
+import time
 from tabulate import tabulate
 
 logger = logging.getLogger(__name__)
@@ -204,3 +206,21 @@ async def blacklist(ctx, command: str, domain: str, policy="delete"):
             await discord.bot.say("⚠️ {0.message.author.mention} Domain not found in database.".format(ctx))
     else:
         await discord.bot.say("{0.message.author.mention} Available options `<add | remove | update | info>` `<domain>` `<audit | delete | kick | ban>`".format(ctx))
+
+@discord.bot.group(pass_context=True, hidden=True)
+async def ha(ctx):
+    if common.isDiscordAdministrator(ctx.message.author):
+        if ctx.invoked_subcommand is None:
+            now = time.mktime(time.gmtime())
+            status_own = redundancy.get_partner_status(config.cfg['redundancy']['self_uid'])
+            status_partner = redundancy.get_partner_status(config.cfg['redundancy']['partner_uid'])
+            emd = discord.embeds.Embed(color=0xE79015)
+            emd.add_field(name="Current (Active) Host", value=platform.node())
+            emd.add_field(name="Current State (Active)", value="**{0[current_state]}** host: {0[hostname]} version: `{0[current_version]}` last heartbeat {1} seconds".format(status_own, int(now - status_own['last_heartbeat'])))
+            emd.add_field(name="Current State (Passive)", value="**{0[current_state]}** host: {0[hostname]} version: `{0[current_version]}` last heartbeat {1} seconds".format(status_partner, int(now - status_partner['last_heartbeat'])))
+            await discord.bot.say(embed=emd)
+
+#eval
+@admin.command(pass_context=True, hidden=True)
+async def fail(ctx):
+    pass

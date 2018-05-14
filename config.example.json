@@ -9,6 +9,8 @@
 
 	"redundancy":{
 		"enable":0,
+		"grace":30,
+		"heartrate":5,
 		"role":"master",
 		"self_uid":"uuid4",
 		"partner_uid":"uuid4"

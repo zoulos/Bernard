@@ -28,7 +28,7 @@ def follow_primary(uuid):
     #if the bot is known as RUNNING_PRIMARY, lets confirm its health state. It should be updating its heartbeat within the minute
     if primary_db['current_state'] == "RUNNING_PRIMARY":
         last_alive = (time.mktime(time.gmtime()) - primary_db['last_heartbeat'])
-        if last_alive <= 30:
+        if last_alive <= config.cfg['redundancy']['grace']:
             logger.info("Primary is healthy. Last known alive {}".format(last_alive))
             return "STAY_SECONDARY"
         else:
@@ -59,7 +59,7 @@ if config.cfg['redundancy']['role'] == "secondary":
         if HA_STATUS == "STAY_SECONDARY":
             update_heartbeat()
             update_status("STAY_SECONDARY", config.cfg['redundancy']['self_uid'])
-            time.sleep(10)
+            time.sleep(config.cfg['redundancy']['heartrate'])
         elif HA_STATUS == "BECOME_PRIMARY":
             update_status(HA_STATUS, config.cfg['redundancy']['self_uid'])
             update_status("FAILING_PRIMARY", config.cfg['redundancy']['partner_uid'])
@@ -71,7 +71,6 @@ if config.cfg['redundancy']['role'] == "secondary":
             logger.critical(get_partner_status(config.cfg['redundancy']['self_uid']))
             logger.critical(get_partner_status(config.cfg['redundancy']['partner_uid']))
             time.sleep(60 * 60 * 6) #60 secs for 60 mins for 6 hours
-
 elif config.cfg['redundancy']['role'] == "primary":
     own_status = get_partner_status(config.cfg['redundancy']['self_uid'])
     IS_PRIMARY = True

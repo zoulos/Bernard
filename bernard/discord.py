@@ -69,7 +69,7 @@ async def update_heartbeat():
                 redundancy.update_status("STAY_SECONDARY", config.cfg['redundancy']['self_uid'])
                 await bot.logout()
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(config.cfg['redundancy']['heartrate'])
 
 #background task to update ha status if enabled
 async def verify_primary():
@@ -88,3 +88,4 @@ async def verify_primary():
 
         if redundancy.own_status['current_state'] == "FAILING_PRIMARY":
             await bot.send_message(mod_channel(), "<@{0}> HA failover started! Primary server '{1}' is now RUNNING_PRIMARY. was FAILING_PRIMARY.".format(config.cfg['bernard']['owner'], platform.node()))
+            redundancy.update_status("RUNNING_PRIMARY", config.cfg['redundancy']['self_uid'])
