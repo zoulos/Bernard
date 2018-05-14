@@ -73,7 +73,8 @@ if config.cfg['redundancy']['role'] == "secondary":
             time.sleep(60 * 60 * 6) #60 secs for 60 mins for 6 hours
 
 elif config.cfg['redundancy']['role'] == "primary":
+    own_status = get_partner_status(config.cfg['redundancy']['self_uid'])
     IS_PRIMARY = True
-    HA_STATUS = "RUNNING_PRIMARY"
+    HA_STATUS = own_status['current_state']
     logger.info("HA_STATUS is RUNNING_PRIMARY, bot is probably started as primary.")
     update_status(HA_STATUS, config.cfg['redundancy']['self_uid'])
