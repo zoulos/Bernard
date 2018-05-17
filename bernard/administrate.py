@@ -209,18 +209,54 @@ async def blacklist(ctx, command: str, domain: str, policy="delete"):
 
 @discord.bot.group(pass_context=True, hidden=True)
 async def ha(ctx):
-    if common.isDiscordAdministrator(ctx.message.author):
-        if ctx.invoked_subcommand is None:
-            now = time.mktime(time.gmtime())
-            status_own = redundancy.get_partner_status(config.cfg['redundancy']['self_uid'])
-            status_partner = redundancy.get_partner_status(config.cfg['redundancy']['partner_uid'])
-            emd = discord.embeds.Embed(color=0xE79015)
-            emd.add_field(name="Current (Active) Host", value=platform.node())
-            emd.add_field(name="Current State (Active)", value="**{0[current_state]}** host: {0[hostname]} version: `{0[current_version]}` last heartbeat {1} seconds".format(status_own, int(now - status_own['last_heartbeat'])))
-            emd.add_field(name="Current State (Passive)", value="**{0[current_state]}** host: {0[hostname]} version: `{0[current_version]}` last heartbeat {1} seconds".format(status_partner, int(now - status_partner['last_heartbeat'])))
-            await discord.bot.say(embed=emd)
+    if common.isDiscordAdministrator(ctx.message.author) is False:
+        return
+
+    #check if HA mode is even enabled
+    if config.cfg['redundancy']['enable'] is False:
+        await discord.bot.say("⚠️ This instance is not configured in an HA pair (standalone mode)")
+        return
+
+    if ctx.invoked_subcommand is None:
+        now = time.mktime(time.gmtime())
+        status_own = redundancy.get_partner_status(config.cfg['redundancy']['self_uid'])
+        status_partner = redundancy.get_partner_status(config.cfg['redundancy']['partner_uid'])
+        emd = discord.embeds.Embed(color=0xE79015)
+        emd.add_field(name="Current (Active) Host", value=platform.node())
+        emd.add_field(name="Current State (Active)", value="**{0[current_state]}** host: {0[hostname]} version: `{0[current_version]}` last heartbeat {1} seconds".format(status_own, int(now - status_own['last_heartbeat'])))
+        emd.add_field(name="Current State (Passive)", value="**{0[current_state]}** host: {0[hostname]} version: `{0[current_version]}` last heartbeat {1} seconds".format(status_partner, int(now - status_partner['last_heartbeat'])))
+        await discord.bot.say(embed=emd)
 
 #eval
-@admin.command(pass_context=True, hidden=True)
-async def fail(ctx):
-    pass
+@ha.command(pass_context=True, hidden=True)
+async def switch(ctx):
+    if common.isDiscordAdministrator(ctx.message.author) is False:
+        return
+
+    #check if HA mode is even enabled
+    if config.cfg['redundancy']['enable'] is False:
+        await discord.bot.say("⚠️ This instance is not configured in an HA pair (standalone mode)")
+        return
+
+    #get the status of both nodes
+    us = redundancy.get_partner_status(config.cfg['redundancy']['self_uid'])
+    partner = redundancy.get_partner_status(config.cfg['redundancy']['partner_uid'])
+
+    #seconds since the partner has been seen
+    partner_last_seen = (time.mktime(time.gmtime()) - partner['last_heartbeat'])
+
+    #if the partner has not been seen in the grace, dont even bother
+    if partner_last_seen > config.cfg['redundancy']['grace']:
+        await discord.bot.say("⚠️ Partner {0[hostname]} has not been seen in {1} seconds which is past the grace period. Unable to failover.".format(partner, partner_last_seen))
+        return
+
+    #the secondary cannot run while the primary is available.
+    if config.cfg['redundancy']['role'] == "secondary":
+        await discord.bot.say("⚠️ {0} (me) is configured as the secondary node. To force control back to the primary, start the primary back up.".format(platform.node()))
+        return
+
+    #if we are the primary and running primary we're cleared to switch
+    if config.cfg['redundancy']['role'] == "primary" and us['current_state'] == "RUNNING_PRIMARY":
+        await discord.bot.say("✔️ Failover started! Secondary server `{0[hostname]}` is being signaled to `BECOME_PRIMARY`. Signaling self FAILING_PRIMARY".format(partner))
+        redundancy.update_status("BECOME_PRIMARY", config.cfg['redundancy']['partner_uid'])
+        redundancy.update_status("FAILING_PRIMARY", config.cfg['redundancy']['self_uid'])
