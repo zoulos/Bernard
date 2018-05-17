@@ -77,3 +77,4 @@ elif config.cfg['redundancy']['role'] == "primary":
     HA_STATUS = own_status['current_state']
     logger.info("HA_STATUS is RUNNING_PRIMARY, bot is probably started as primary.")
     update_status(HA_STATUS, config.cfg['redundancy']['self_uid'])
+    update_status("STAY_SECONDARY", config.cfg['redundancy']['partner_uid'])

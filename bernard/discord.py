@@ -1,5 +1,6 @@
 import bernard.config as config
 import bernard.redundancy as redundancy
+import bernard.database as database
 import asyncio
 import discord
 import logging
@@ -23,7 +24,11 @@ async def on_ready():
     global default_server
     logger.info('Logged in as {0.user.name} ID:{0.user.id}'.format(bot))
 
+    #initalize the primary heartbeat (if in HA mode)
     await verify_primary()
+
+    #init a background process constantly checking DB health
+    await verify_database()
 
     #make an object available of this Server
     default_server = bot.get_server(config.cfg['discord']['server'])
@@ -89,3 +94,6 @@ async def verify_primary():
         if redundancy.own_status['current_state'] == "FAILING_PRIMARY":
             await bot.send_message(mod_channel(), "<@{0}> HA failover started! Primary server '{1}' is now RUNNING_PRIMARY. was FAILING_PRIMARY.".format(config.cfg['bernard']['owner'], platform.node()))
             redundancy.update_status("RUNNING_PRIMARY", config.cfg['redundancy']['self_uid'])
+
+async def verify_database():
+    bot.loop.create_task(database.check_db_process())
