@@ -65,6 +65,12 @@ async def update_heartbeat():
         #update our own heartbeat
         redundancy.update_heartbeat()
 
+        if config.cfg['redundancy']['role'] == "primary":
+            us = redundancy.get_partner_status(config.cfg['redundancy']['self_uid'])
+            if us['current_state'] == "SWITCH_PRIMARY":
+                logger.warn("Primary bot is up but manual switch to secondary signaled! Stopping primary")
+                await bot.logout()
+
         #if we are running as secondary poll for the master being available again
         if config.cfg['redundancy']['role'] == "secondary":
             partner = redundancy.get_partner_status(config.cfg['redundancy']['partner_uid'])

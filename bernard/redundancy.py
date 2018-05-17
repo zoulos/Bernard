@@ -37,6 +37,9 @@ def follow_primary(uuid):
     elif primary_db['current_state'] == "BECOME_SECONDARY":
         logger.warn("Primary node is requesting to become the secondary and relinquish primary control.")
         return "BECOME_PRIMARY"
+    elif primary_db['current_state'] == "SWITCH_PRIMARY":
+        logger.warn("Primary node requested to go into secondary mode via !ha switch")
+        return "BECOME_PRIMARY"
     else:
         return "STAY_SECONDARY"
 
@@ -72,9 +75,16 @@ if config.cfg['redundancy']['role'] == "secondary":
             logger.critical(get_partner_status(config.cfg['redundancy']['partner_uid']))
             time.sleep(60 * 60 * 6) #60 secs for 60 mins for 6 hours
 elif config.cfg['redundancy']['role'] == "primary":
-    own_status = get_partner_status(config.cfg['redundancy']['self_uid'])
-    IS_PRIMARY = True
-    HA_STATUS = own_status['current_state']
-    logger.info("HA_STATUS is RUNNING_PRIMARY, bot is probably started as primary.")
-    update_status(HA_STATUS, config.cfg['redundancy']['self_uid'])
-    update_status("STAY_SECONDARY", config.cfg['redundancy']['partner_uid'])
+    while IS_PRIMARY is False:
+        own_status = get_partner_status(config.cfg['redundancy']['self_uid'])
+        HA_STATUS = own_status['current_state']
+
+        #if we are holding the start
+        if HA_STATUS == "SWITCH_PRIMARY":
+            logger.warn("Bot started but was signaled as SWITCH_MASTER. This mean !ha switch was invoked and the secondary is forced to run.")
+            time.sleep(30) #sleep for 30 seconds. eventually
+        else:
+            IS_PRIMARY = True
+            logger.info("HA_STATUS is now RUNNING_PRIMARY. Starting bot.")
+            update_status(HA_STATUS, config.cfg['redundancy']['self_uid'])
+            update_status("STAY_SECONDARY", config.cfg['redundancy']['partner_uid'])

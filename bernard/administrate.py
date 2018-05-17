@@ -259,4 +259,4 @@ async def switch(ctx):
     if config.cfg['redundancy']['role'] == "primary" and us['current_state'] == "RUNNING_PRIMARY":
         await discord.bot.say("✔️ Failover started! Secondary server `{0[hostname]}` is being signaled to `BECOME_PRIMARY`. Signaling self FAILING_PRIMARY".format(partner))
         redundancy.update_status("BECOME_PRIMARY", config.cfg['redundancy']['partner_uid'])
-        redundancy.update_status("FAILING_PRIMARY", config.cfg['redundancy']['self_uid'])
+        redundancy.update_status("SWITCH_PRIMARY", config.cfg['redundancy']['self_uid'])
