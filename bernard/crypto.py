@@ -39,7 +39,7 @@ async def cryptoadmin(ctx):
 async def alias(ctx, action: str, ticker=None, alias=None):
     if common.isDiscordAdministrator(ctx.message.author):
         if action == "add":
-            database.cursor.execute('INSERT INTO crypto_lazy(ticker, alias, added, issued) VALUES(%s,%s,%s,%s)', (ticker.lower(), alias.lower(), analytics.getEventTime(), ctx.message.author.name))
+            database.cursor.execute('INSERT IGNORE INTO crypto_lazy(ticker, alias, added, issued) VALUES(%s,%s,%s,%s)', (ticker.lower(), alias.lower(), analytics.getEventTime(), ctx.message.author.name))
             database.connection.commit()
             await discord.bot.say("**Alias Added:** `{0}` will use ticker `{1}` in lookup attempts".format(alias, ticker))
         elif action == "remove":
@@ -212,9 +212,9 @@ class Coin:
     async def force_fiat(self):
         if self.fiat_cache == None:
             if self.currency == "btc":
-                ret = await common.getJSON('https://api.gdax.com/products/btc-usd/ticker')
+                ret = await common.getJSON('https://api.pro.coinbase.com/products/btc-usd/ticker')
             elif self.currency == "eth":
-                ret = await common.getJSON('https://api.gdax.com/products/eth-usd/ticker')
+                ret = await common.getJSON('https://api.pro.coinbase.com/products/eth-usd/ticker')
             else:
                 logger.warn("cannot force fiat price on currency when it's {0}".format(self.currency))
                 return None
@@ -279,7 +279,7 @@ class Coin:
 
 class TickerFetch(Coin):
     async def gdax(self):
-        ret = await common.getJSON('https://api.gdax.com/products/'+self.ticker+'-'+self.currency+'/ticker')
+        ret = await common.getJSON('https://api.pro.coinbase.com/products/'+self.ticker+'-'+self.currency+'/ticker')
         if ret is not None:
             self.valued = ret['price']
             return self.format(ret['price'])
@@ -414,11 +414,11 @@ class UpdateCoins:
 
     async def gdax(self):
         logger.info("UPDATING GDAX TICKERS...")
-        ret = await common.getJSON('https://api.gdax.com/products')
+        ret = await common.getJSON('https://api.pro.coinbase.com/products')
         if ret is not None:
             for ticker in ret:
                 unique = "gdax" + ticker['base_currency'].lower() + ticker['quote_currency'].lower()
-                database.cursor.execute('INSERT INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (1, "gdax", ticker['base_currency'].lower(), ticker['quote_currency'].lower(), unique)) # ticker['symbol'][-3:] currency | ticker['symbol'][:3] ticker
+                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (1, "gdax", ticker['base_currency'].lower(), ticker['quote_currency'].lower(), unique)) # ticker['symbol'][-3:] currency | ticker['symbol'][:3] ticker
             database.connection.commit()
             return True
         else:
@@ -430,7 +430,7 @@ class UpdateCoins:
         if ret is not None:
             for ticker in ret:
                 unique =  "gemini" + ticker[:3].lower() + ticker[-3:].lower()
-                database.cursor.execute('INSERT INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (2, "gemini", ticker[:3].lower(), ticker[-3:].lower(), unique)) # ticker[-3:] currency | ticker[:3] ticker
+                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (2, "gemini", ticker[:3].lower(), ticker[-3:].lower(), unique)) # ticker[-3:] currency | ticker[:3] ticker
             database.connection.commit()
             return True
         else:
@@ -442,7 +442,7 @@ class UpdateCoins:
         if ret is not None:
             for ticker in ret:
                 unique = "bitfinex" + ticker[:3] + ticker[-3:]
-                database.cursor.execute('INSERT INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (5, "bitfinex", ticker[:3], ticker[-3:], unique)) #ticker[-3:] curr | ticker[:3] ticker
+                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (5, "bitfinex", ticker[:3], ticker[-3:], unique)) #ticker[-3:] curr | ticker[:3] ticker
             database.connection.commit()
             return True
         else:
@@ -454,7 +454,7 @@ class UpdateCoins:
         if ret is not None:
             for ticker in ret['result']:
                 unique = "bittrex" + ticker['MarketCurrency'].lower() + ticker['BaseCurrency'].lower().replace("usdt","usd")
-                database.cursor.execute('INSERT INTO crypto(priority,exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (6, "bittrex", ticker['MarketCurrency'].lower(), ticker['BaseCurrency'].lower().replace("usdt","usd"), unique)) #ticker['MarketCurrency'] ticker | ticker['BaseCurrency'] currency            database.connection.commit()
+                database.cursor.execute('INSERT IGNORE INTO crypto(priority,exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (6, "bittrex", ticker['MarketCurrency'].lower(), ticker['BaseCurrency'].lower().replace("usdt","usd"), unique)) #ticker['MarketCurrency'] ticker | ticker['BaseCurrency'] currency            database.connection.commit()
             database.connection.commit()
             return True
         else:
@@ -462,12 +462,12 @@ class UpdateCoins:
 
     async def poloniex(self):
         logger.info("UPDATING POLOINEX TICKERS...")
-        database.cursor.execute('INSERT INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (8, "poloniex", "btc", "usd", "poloniexbtcusd"))
+        database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (8, "poloniex", "btc", "usd", "poloniexbtcusd"))
         ret = await common.getJSON('https://poloniex.com/public?command=returnCurrencies')
         if ret is not None:
             for ticker in ret:
                 unique = "poloniex" + ticker.replace("USDT","usd").lower() + "btc"
-                database.cursor.execute('INSERT INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (8, "poloniex", ticker.replace("USDT","usd").lower(), "btc", unique)) # ticker ticker | ticker['symbol'][:3] ticker
+                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (8, "poloniex", ticker.replace("USDT","usd").lower(), "btc", unique)) # ticker ticker | ticker['symbol'][:3] ticker
             database.connection.commit()
             return True
         else:
