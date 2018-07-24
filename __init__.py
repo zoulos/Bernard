@@ -8,7 +8,7 @@ logger.info("Attempting to start. I can't promise you I will work but I can sure
 import bernard.config
 import bernard.common
 
-import bernard.redundancy
+#import bernard.redundancy
 
 import bernard.discord
 import bernard.database

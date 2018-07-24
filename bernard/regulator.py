@@ -2,6 +2,7 @@ import bernard.config as config
 import bernard.common as common
 import bernard.discord as discord
 import bernard.journal as journal
+import bernard.database as database
 import asyncio
 import aiohttp
 import logging
@@ -133,6 +134,61 @@ async def ban(ctx, target, *, reason):
             journal.update_journal_regulator(invoker=ctx.message.author.id, target=ctx.message.mentions[0].id, eventdata=reason, action="BAN_MEMBER", messageid=ctx.message.id)
     else:
         await discord.bot.say("🛑 {} unable to moderate user. Either you failed to tag the user properly or the member is protected from regulators.".format(ctx.message.author.mention))
+
+#anti-raid/easy cleanup code, used to mass ban my ingress point
+@discord.bot.command(pass_context=True, no_pm=True, hidden=True)
+async def inviteban(ctx, target, *, reason):
+    if common.isDiscordRegulator(ctx.message.author) != True:
+        return
+
+    #get anyone who joined via the invite
+    database.cursor.execute("SELECT * FROM journal_events WHERE event='ON_MEMBER_JOINED_WITH_INVITE' AND contents=%s", (target,))
+    invitees =  database.cursor.fetchall()
+
+    #if there is not anyone, dont even do anything
+    if len(invitees) == 0 or target.lower() == "none":
+        await discord.bot.say("⚠️ {} Invalid invite code! 0 members joined via internal journal. Retype invite or bother Cake.".format(ctx.message.author.mention))
+        return
+
+    #get the invite data, make sure it is valid and then get who made it. They purge first.
+    try:
+        invite = await discord.bot.get_invite(target)
+    except Exception as e:
+        invite = None
+        await discord.bot.say("⚠️ {} unable to look up invite code: {} for ownership! Moving on to blind mode!".format(ctx.message.author.mention, e))
+
+    #ban the inviter if we know who they are
+    if invite is not None:
+        banned_inviter = await common.ban_verbose(invite.inviter, "{} from invite {} - '{}'".format(ctx.message.author.name, target, reason))
+        if banned_inviter == False:
+            pass
+            await discord.bot.say("❓ Something's fucked! Unable to issue ban to Discord API for root invite creator. Bother cake. (protected user?)")
+        else:
+            journal.update_journal_regulator(invoker=ctx.message.author.id, target=invite.inviter.id, eventdata=target, action="BAN_MEMBER_VIA_INVITE_MAKER", messageid=ctx.message.id)
+            await discord.bot.say("✔️ {} is dropping the hammer on {} and anyone who joined via their invite `{}`. Let the bombs drop! ".format(ctx.message.author.mention, invite.inviter.mention, target))
+
+    for invited in invitees:
+
+        #attempt to turn the ID into a valid member object
+        server = discord.bot.get_server(config.cfg['discord']['server'])
+        invited_member = server.get_member(str(invited['userid']))
+
+        #if that cant happen, the user probably left or was banned already. Add to retroactive table (TODO)
+        if invited_member == None:
+                database.cursor.execute('INSERT IGNORE INTO bans_retroactive(id, name, reason) VALUES(%s,%s,%s)', (invited['userid'], "UNKNOWN_INVITEBAN_CALLED", reason))
+                database.connection.commit()
+                await discord.bot.say("⚠️ `{}` is getting banned for joining on invite `{}` (retroactive fallback. User either left or already banned) ".format(invited['userid'], target))
+        else:
+            banned_inviter = await common.ban_verbose(invited_member, "{} inviteban via {} - '{}'".format(ctx.message.author.name, target, reason))
+            if banned_inviter == False:
+                await discord.bot.say("❓ Something's fucked! Unable to issue ban to Discord API for {}. Bother cake.".format(invited_member.mention))
+            else:
+                await discord.bot.say("✔️ {} is getting banned for joining on invite `{}` ".format(invited_member.mention, target))
+
+        #take a break between to prevent r8 limited
+        await asyncio.sleep(2)
+
+    await discord.bot.say("Invite ban completed. {} members removed. Thanks for playing!".format(len(invitees)))
 
 #strip member of rights to talk in voice rooms
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
