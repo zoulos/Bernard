@@ -133,7 +133,17 @@ async def ban(ctx, target, *, reason):
         else:
             journal.update_journal_regulator(invoker=ctx.message.author.id, target=ctx.message.mentions[0].id, eventdata=reason, action="BAN_MEMBER", messageid=ctx.message.id)
     else:
-        await discord.bot.say("🛑 {} unable to moderate user. Either you failed to tag the user properly or the member is protected from regulators.".format(ctx.message.author.mention))
+        #if a raw mention exists but not the Member object, handle it as retroactive and log who did it.
+        if len(ctx.message.raw_mentions) == 1 and len(ctx.message.mentions) == 0:
+            await discord.bot.say("✔️ {} is (retroactive) **BANNING** userid `{}` with the reason of `{}`.".format(ctx.message.author.mention, ctx.message.raw_mentions[0], reason))
+
+            journal.update_journal_regulator(invoker=ctx.message.author.id, target=ctx.message.raw_mentions[0], eventdata=reason, action="BAN_MEMBER_RETROACTIVE", messageid=ctx.message.id)
+
+            retroactive_reason = "VIA_RETROACTIVE: {} - '{}'".format(ctx.message.author.name, reason)
+            database.cursor.execute('INSERT INTO bans_retroactive (id, name, reason) VALUES (%s,%s,%s)',(ctx.message.raw_mentions[0], "N/A", retroactive_reason))
+            database.connection.commit()
+        else:
+            await discord.bot.say("🛑 {} unable to moderate user. Either you failed to tag the user properly or the member is protected from regulators.".format(ctx.message.author.mention))
 
 #anti-raid/easy cleanup code, used to mass ban my ingress point
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
