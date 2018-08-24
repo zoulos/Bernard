@@ -6,6 +6,7 @@ import bernard.database as database
 import asyncio
 import aiohttp
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 logger.info("loading...")
@@ -199,6 +200,60 @@ async def inviteban(ctx, target, *, reason):
         await asyncio.sleep(2)
 
     await discord.bot.say("Invite ban completed. {} members removed. Thanks for playing!".format(len(invitees)))
+
+# handle unbans of regs own bans, also allow admins to unban anyone by id
+@discord.bot.command(pass_context=True, no_pm=True, hidden=True)
+async def unban(ctx, target):
+    if common.isDiscordAdministrator(ctx.message.author):
+        #if the user is an admin, let them blindly call IDs, unban blindly from discord
+        unban_status_discord = await common.unban_id(target)
+
+        #also check the retroactive table, this can be useful if the user was retro banned but never rejoied
+        database.cursor.execute('SELECT * FROM bans_retroactive WHERE id=%s', (target,))
+        unban_status_retroactive = database.cursor.fetchone()
+        if unban_status_retroactive is None:
+            unban_status_retroactive = False
+        else:
+            database.cursor.execute('DELETE FROM bans_retroactive WHERE id=%s', (target,))
+            database.connection.commit()
+
+        #unban message logic
+        if unban_status_discord is False and unban_status_retroactive is False:
+            await discord.bot.say("⚠️ Unable to find ID in either Discord or Retroactive table. Try again?")
+        elif unban_status_discord is True and unban_status_retroactive is False:
+            await discord.bot.say("✔️ User was found banned on Discord. Removed ban.")
+        elif unban_status_discord is False and unban_status_retroactive is True:
+            await discord.bot.say("✔️ User was found banned in Retroactive table. Removed from database.")
+        else:
+            await discord.bot.say("✔️ User was found banned on Discord and Retroactive ban table. Removed ban and database entry.")
+    elif common.isDiscordRegulator(ctx.message.author):
+        #regulators have a slightly different logic to follow to allow. Use internal audit log to make decisions
+        database.cursor.execute('SELECT * FROM journal_regulators WHERE id_targeted=%s AND id_invoker=%s AND action="BAN_MEMBER" ORDER BY time', (target, ctx.message.author.id))
+        regulator_target_history = database.cursor.fetchone()
+
+        #if there is nothing in the database there is no reason to even try with the logic
+        if regulator_target_history is None:
+            logger.warn("{0} attempted unban of {1} ID but failed due to reason: DB_RETURNED_NONE".format(ctx.message.author.id, target))
+            await discord.bot.say("⚠️ {0.message.author.mention} Unable to find any record of you banning ID `{1}` (ever). You can only unban people you yourself banned.".format(ctx, target))
+            return
+
+        #get how many mins ago the ban was to see if they are able to be unbanned
+        banned_mins_ago = int((time.time() - regulator_target_history['time']) / 60)
+
+        #handle if we should process the unban_id()
+        if banned_mins_ago > config.cfg['regulators']['unban_grace_mins']:
+            over_grace_mins = int(banned_mins_ago - config.cfg['regulators']['unban_grace_mins'])
+            logger.warn("{0} attempted unban of {1} ID but failed due to reason: OVER_GRACE_PERIOD by {2} minutes".format(ctx.message.author.id, target, over_grace_mins))
+            await discord.bot.say("⚠️ {0.message.author.mention} The user ID `{1}` is over the grace period for regulator unbans by `{2}` minutes. Contact an Administrator.".format(ctx, target, over_grace_mins))
+        else:
+            unban_status_discord = await common.unban_id(target)
+            if unban_status_discord is False:
+                logger.warn("{0} attempted unban of {1} ID but failed due to reason: DISCORD_RETURNED_NOT_BANNED".format(ctx.message.author.id, target))
+                await discord.bot.say("⚠️ {0.message.author.mention}  Discord returned no ban found for ID `{1}` (ever). The user was already unbanned or something is wrong :/".format(ctx, target))
+            else:
+                logger.info("{0} unbanned {1}. Time elapsed since ban {2}".format(ctx.message.author.id, target, banned_mins_ago))
+                await discord.bot.say("✔️ {0.message.author.mention} ID `{1}` has been unbanned!".format(ctx, target))
+                journal.update_journal_regulator(invoker=ctx.message.author.id, target=target, eventdata=banned_mins_ago, action="UNBAN_MEMBER_GRACE", messageid=ctx.message.id)
 
 #strip member of rights to talk in voice rooms
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)

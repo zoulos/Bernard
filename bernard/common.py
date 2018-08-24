@@ -118,7 +118,7 @@ async def ban_verbose(user, reason):
         url = config.cfg['discord']['endpoint'] + "/guilds/" + config.cfg['discord']['server'] + "/bans/" + user.id
         params = [('reason', reason), ('delete-message-days', 0)]
         async with aiohttp.put(url, params=params, headers={'Authorization':'Bot '+ config.cfg['discord']['token']}) as r:
-            logger.info("common.ban_verbose() attempting async URL {0} params".format(url, params))
+            logger.info("common.ban_verbose() attempting async URL {0} params {1}".format(url, params))
             if r.status == 204:
                 return True
             else:
@@ -127,4 +127,19 @@ async def ban_verbose(user, reason):
 
     except Exception as e:
         logger.error("common.ban_verbose() threw an exception: {0}".format(e))
+        return False
+
+#handle unbans by id instead of having to make an object just to delete it :/
+async def unban_id(userid):
+    try:
+        url = config.cfg['discord']['endpoint'] + "/guilds/" + config.cfg['discord']['server'] + "/bans/" + userid
+        async with aiohttp.delete(url, headers={'Authorization':'Bot '+ config.cfg['discord']['token']}) as r:
+            logger.info("common.unban_id() attemping to async URL {0}".format(url))
+            if r.status == 204:
+                return True
+            else:
+                logger.warn("common.unban_id() returning false, got status code {} from discord.".format(r.status))
+                return False
+    except Exception as e:
+        logger.error("common.unban_id() threw and exception {}".format(e))
         return False

@@ -35,6 +35,10 @@
 		}
 	},
 
+	"regulators":{
+		"unban_grace_mins":4320
+	},
+
 	"purge_inactive_users":{
 		"enable":1,
 		"interval":21600,
