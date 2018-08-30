@@ -7,6 +7,8 @@ import bernard.invites as invites
 import bernard.journal as journal
 import bernard.subscriber as subscriber
 import logging
+import asyncio
+import datetime
 
 logger = logging.getLogger(__name__)
 logger.info("loading...")
@@ -38,6 +40,23 @@ async def on_member_join(user):
 
     ##send the message to the admin defined channel
     await discord.bot.send_message(discord.mod_channel(),"{0} **New User:** {1.mention} (Name:`{1.name}#{1.discriminator}` ID:`{1.id}`) **Account Age:** {2} **From:** `{3}`".format(common.bernardUTCTimeNow(), user, common.bernardAccountAgeToFriendly(user), invite))
+
+    #handle kicking / banning of "new" accounts
+    if config.cfg['auditing']['account_age_min']['enable']:
+        logger.info("on_member_join() Account age minimum is enabled: Minimum account age required {} minutes.".format(config.cfg['auditing']['account_age_min']['min_age_required']))
+        account_age_minutes = int((datetime.datetime.utcnow().timestamp() - user.created_at.timestamp()) / 60)
+
+        #if the users account is too new lets apply logic to kick or ban
+        if account_age_minutes <= config.cfg['auditing']['account_age_min']['min_age_required']:
+            journal.update_journal_event(module=__name__, event="ON_MEMBER_JOIN_ACCOUNT_TOONEW", userid=user.id, contents="{0.name}#{0.discriminator} - {1} mins old".format(user, account_age_minutes))
+            #await discord.bot.send_message(user, config.cfg['auditing']['account_age_min']['enforcement_dm'])
+            await asyncio.sleep(3)
+            if config.cfg['auditing']['account_age_min']['enforcement'] == "ban":
+                logger.warn("on_member_join() BANNING ID {0.id} for being too new. Account age was {1} minutes, config is {2} minute age..".format(user, account_age_minutes, config.cfg['auditing']['account_age_min']['min_age_required']))
+                await common.ban_verbose(user, "BOT_BAN_VIA_ACCOUNT_TOONEW - {} min old".format(account_age_minutes))
+            else:
+                logger.warn("on_member_join() KICKING ID {0.id} for being too new. Account age was {1} minutes, config is {2} minute age.".format(user, account_age_minutes, config.cfg['auditing']['account_age_min']['min_age_required']))
+                await discord.bot.kick(user)
 
     #do a subscriber check and assign any roles on joining
     check_sub = subscriber.subscriber_update(user)

@@ -1,5 +1,5 @@
 import bernard.config as config
-import bernard.redundancy as redundancy
+#import bernard.redundancy as redundancy
 import bernard.database as database
 import asyncio
 import discord
@@ -83,6 +83,7 @@ async def update_heartbeat():
         await asyncio.sleep(config.cfg['redundancy']['heartrate'])
 
 #background task to update ha status if enabled
+"""
 async def verify_primary():
     if config.cfg['redundancy']['enable']:
         #start heartbeating
@@ -103,3 +104,4 @@ async def verify_primary():
 
 async def verify_database():
     bot.loop.create_task(database.check_db_process())
+"""

@@ -65,6 +65,11 @@
 		},
 		"blacklisted_domains":{
 			"enable":1
+		},
+		"account_age_min":{
+			"enable":1,
+			"min_age_required":1440,
+			"enforcement":"ban"
 		}
 	},
 

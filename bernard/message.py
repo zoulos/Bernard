@@ -1,6 +1,6 @@
 import bernard.config as config
 import bernard.common as common
-import bernard.redundancy as redundancy
+#import bernard.redundancy as redundancy
 import bernard.discord as discord
 import bernard.auditing as auditing
 import bernard.analytics as analytics
