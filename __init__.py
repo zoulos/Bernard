@@ -1,15 +1,12 @@
 import logging
+import bernard.config
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s -> %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logging.basicConfig(level=logging.INFO, format=bernard.config.cfg['bernard']['logging']['format'], datefmt=bernard.config.cfg['bernard']['logging']['dateformat'])
 logger = logging.getLogger(__name__)
 logger.info("Attempting to start. I can't promise you I will work but I can sure try.")
 
-#always import config, common, discord in that order or things will break
-import bernard.config
+#always import common, discord in that order or things will break
 import bernard.common
-
-#import bernard.redundancy
-
 import bernard.discord
 import bernard.database
 import bernard.analytics
