@@ -50,6 +50,9 @@ def isDiscordMainServer(server):
 def bernardUTCTimeNow():
     return datetime.datetime.utcnow().strftime(config.cfg["bernard"]["timestamp"])
 
+def bernardUTCEpochTimeNow():
+    return datetime.datetime.utcnow().timestamp()
+
 def bernardTimeToEpoch(age):
     return datetime.datetime(age).timestamp()
 

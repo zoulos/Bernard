@@ -34,10 +34,17 @@
 		"unban_grace_mins":4320
 	},
 
-	"purge_inactive_users":{
-		"enable":1,
-		"interval":21600,
-		"inactive_days":30
+	"housekeeping":{
+		"purge_inactive_users":{
+			"enable":1,
+			"interval":21600,
+			"inactive_days":30
+		},
+		"journal_events_cleanup":{
+			"enable":1,
+			"interval":43200,
+			"days_to_keep":14
+		}
 	},
 
 	"invite_cleanup":{
