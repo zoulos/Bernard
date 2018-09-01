@@ -32,8 +32,9 @@ def check_db_ready():
 
 check_db_ready()
 
-#this is called as an async task in discord.py with verify_database()
-async def check_db_process():
+#keeps checking to make sure the db is still connected
+async def check_db_connection():
+    logger.info("check_db_connection() starting background database healthcheck")
     while True:
         if connection.is_connected():
             await asyncio.sleep(config.cfg['bernard']['database']['checkrate'])
