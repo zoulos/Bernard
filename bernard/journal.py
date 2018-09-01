@@ -36,7 +36,7 @@ async def journal(ctx, user: str):
         return
     else:
         for row in dbres:
-            emd.add_field(inline=False,name="{}".format(datetime.fromtimestamp(float(row['time'])).isoformat()), value="{0[module]} Results: {0[contents]}\n".format(row))
+            emd.add_field(inline=False,name="{}".format(datetime.fromtimestamp(float(row['time'])).isoformat()), value="{0[event]}({0[module]}) Result: {0[contents]}\n".format(row))
         await discord.bot.say(embed=emd)
 
 def update_journal_job(**kwargs):
