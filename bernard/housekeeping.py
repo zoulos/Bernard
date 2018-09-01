@@ -47,8 +47,11 @@ async def journal_events_cleanup():
         deleted_records_count = database.cursor.rowcount
 
         #log internally and update the modlog channel
-        logger.warn("journal_events_cleanup() purging {0} deleted messages from journal_events".format(deleted_records_count))
-        await discord.bot.send_message(discord.mod_channel(), "{0} **Pruned Deleted Messages:** {1} messages removed from journal for being older than {2} days".format(common.bernardUTCTimeNow(), deleted_records_count, config.cfg['housekeeping']['journal_events_cleanup']['days_to_keep']))
+        if deleted_records_count > 0:
+            logger.warn("journal_events_cleanup() purging {0} deleted messages from journal_events".format(deleted_records_count))
+            await discord.bot.send_message(discord.mod_channel(), "{0} **Pruned Deleted Messages:** {1} messages removed from journal for being older than {2} days".format(common.bernardUTCTimeNow(), deleted_records_count, config.cfg['housekeeping']['journal_events_cleanup']['days_to_keep']))
+        else:
+            logger.warn("journal_events_cleanup() nothing to delete at this time.")
 
         await asyncio.sleep(config.cfg['housekeeping']['journal_events_cleanup']['interval'])
 
