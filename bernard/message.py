@@ -12,6 +12,13 @@ logger.info("loading...")
 @discord.bot.event
 async def on_message(message):
 	msgProcessStart = analytics.getEventTime()
+
+	#process bot DMs into the mod channel if its not the owner.
+	if message.server is None:
+		logger.info("on_message() got DM from {0.author.name} (ID:{0.author.id}) containing {0.clean_content}".format(message))
+		if message.author.id != config.cfg['bernard']['owner']:
+			await discord.bot.send_message(discord.mod_channel(), "{0} **New DM:** {1.author.mention} sent: `{1.clean_content}` ".format(common.bernardUTCTimeNow(), message))
+
 	#only reply to the guild set in config file
 	try:
 		if common.isDiscordMainServer(message.server) is not True:
