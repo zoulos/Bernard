@@ -8,11 +8,17 @@ import logging
 logger = logging.getLogger(__name__)
 logger.info("loading...")
 
+IGNORE_IDS = []
+
 #new member to the server. message = discord.Message
 @discord.bot.event
 async def on_message_delete(message):
     msgProcessStart = analytics.getEventTime()
     if common.isDiscordMainServer(message.server) is not True:
+        return
+
+    if message.author.id in IGNORE_IDS:
+        logger.info("on_message_delete() ignoring deleted message user id is in IGNORE_IDS variable")
         return
 
     if message.attachments and message.content == "":
