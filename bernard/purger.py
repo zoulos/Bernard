@@ -39,15 +39,19 @@ async def cleanup(ctx, target=None, history=100):
         member = ctx.message.server.get_member(target)
 
     #dont allow this to be called on regulators/administrators
-    if common.isDiscordRegulator(member):
+    if member is None:
+        pass
+    elif common.isDiscordRegulator(member):
         logger.warn("cleanup() called and is exiting: ID:{0.message.author.id} attempted to call cleanup on ID:{1.id} but was denied by: IS_REGULATOR_PROTECTED".format(ctx, member))
         await discord.bot.say("⚠️{0.message.author.mention} you are not allowed to call that on other admins/regulators!".format(ctx))
         return
+    else:
+        pass
 
     #while this runs lets not flood the mod channel with messages
     deleted.IGNORE_IDS.append(target)
 
-    await discord.bot.say("{0.message.author.mention} starting now. Will @ you when complete.".format(ctx))
+    await discord.bot.say("{0.message.author.mention} starting now and will @ you when task completed.".format(ctx))
     logger.info("cleanup() {0.message.author.name} started deletion on {1}. Checking all channels last {2} messages.".format(ctx, target, history))
     for channel in ctx.message.server.channels:
         if channel.type == discord.discord.ChannelType.text:
