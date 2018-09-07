@@ -32,6 +32,7 @@ def isDiscordRegulator(member):
         for role in member.roles:
             if role.id == config.cfg['bernard']['administrators']: return True
             if role.id == config.cfg['bernard']['regulators']: return True
+            if role.id == config.cfg['bernard']['politics_regulators']: return True
     except AttributeError:
         return False
 
