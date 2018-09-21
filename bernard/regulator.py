@@ -228,7 +228,7 @@ async def unban(ctx, target):
             await discord.bot.say("✔️ User was found banned on Discord and Retroactive ban table. Removed ban and database entry.")
     elif common.isDiscordRegulator(ctx.message.author):
         #regulators have a slightly different logic to follow to allow. Use internal audit log to make decisions
-        database.cursor.execute('SELECT * FROM journal_regulators WHERE id_targeted=%s AND id_invoker=%s AND action="BAN_MEMBER" ORDER BY time', (target, ctx.message.author.id))
+        database.cursor.execute('SELECT * FROM journal_regulators WHERE id_targeted=%s AND id_invoker=%s AND action="BAN_MEMBER" ORDER BY time ASC', (target, ctx.message.author.id))
         regulator_target_history = database.cursor.fetchone()
 
         #if there is nothing in the database there is no reason to even try with the logic
