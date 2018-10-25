@@ -195,7 +195,7 @@ class subscriber_update:
 
         #if today is over the expires_day, accounts for rounding by giving user another day of grace. Remove from DB only. audit_subscriber() will remove next run
         #if self.today > existing['expires_day']:
-        if time.now() > existing['expires_epoch']:
+        if time.time() > existing['expires_epoch']:
             database.cursor.execute('DELETE FROM subscribers WHERE userid=%s', (self.user.id,))
             database.connection.commit()
             self.result = "{0.mention} sub expired. Removing DB entry :(".format(self.user)
