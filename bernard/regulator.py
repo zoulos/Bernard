@@ -75,7 +75,7 @@ def allow_regulation(ctx, target_id):
     if common.isDiscordRegulator(ctx.message.author) == True:
         pass
     else:
-        logger.info("allow_regulation() attempted to invoke but was rejected for: no permission, Invoker: {}, Target:{}".format(ctx.message.author.mention.id, target_id))
+        logger.info("allow_regulation() attempted to invoke but was rejected for: no permission, Invoker: {}, Target:{}".format(ctx.message.author.id, target_id))
         return False
 
     #we need an ID to be able to work with, this should already be caught
@@ -84,7 +84,7 @@ def allow_regulation(ctx, target_id):
 
     #dont let the user try to play themselves
     if target_id == ctx.message.author.id:
-        logger.info("allow_regulation() attempted to invoke but was rejected for: attempted self harm, Invoker: {}, Target:{}".format(ctx.message.author.mention.id, target_id))
+        logger.info("allow_regulation() attempted to invoke but was rejected for: attempted self harm, Invoker: {}, Target:{}".format(ctx.message.author.id, target_id))
         return False
 
     #if the user is an admin process it bypassing permissions
@@ -94,7 +94,7 @@ def allow_regulation(ctx, target_id):
     #convert the target_id into a member object, or at least try. This is to cacluate if the user can be touched
     target_member = discord.default_server.get_member(target_id)
     if target_member is None:
-        logger.info("allow_regulation() bypassing action restriction since Member object cannot be created. Invoker: {}, Target: {}".format(ctx.message.author.mention.id, target_id))
+        logger.info("allow_regulation() bypassing action restriction since Member object cannot be created. Invoker: {}, Target: {}".format(ctx.message.author.id, target_id))
         return True
 
     #get the assigned role IDs
@@ -111,11 +111,11 @@ def allow_regulation(ctx, target_id):
     if len(allowed_set) == 0:
         return True
     else:
-        logger.info("allow_regulation() attempted to invoke but was rejected for: protected role, Invoker: {}, Target:{}".format(ctx.method.author.mention.id, target_id))
+        logger.info("allow_regulation() attempted to invoke but was rejected for: protected role, Invoker: {}, Target:{}".format(ctx.method.author.id, target_id))
         return False
 
     #failsafe to no if my bad logic fails
-    logger.info("allow_regulation() attempted to invoke but was rejected for: failsafe, Invoker: {}, Target:{}".format(ctx.method.author.mention.id, target_id))
+    logger.info("allow_regulation() attempted to invoke but was rejected for: failsafe, Invoker: {}, Target:{}".format(ctx.method.author.id, target_id))
     return False
 
 
