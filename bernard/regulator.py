@@ -18,6 +18,31 @@ TODO:
 - public command to query reuglator actions
 """
 
+#uniform the user ID input to streamline regulator usefulness
+def get_targeted_id(ctx):
+    #if it's in the format of a mention, raw_mention should catch this - returns for @mentions and <@fakementions>
+    if len(ctx.message.raw_mentions) == 1:
+        return ctx.message.raw_mentions[0]
+
+    #if it's an integer lets just pass that along and not care if it's valid (the functions should confirm) - returns for raw ID entry
+    raw_mention = ctx.message.content.split()[1]
+    if raw_mention.isdigit():
+        return raw_mention
+
+    #try to handle for mention'ed names in normie format - returns for ILiedAboutCake#0420
+    result = discord.default_server.get_member_named(raw_mention)
+    if result is not None:
+        return result.id
+
+    #a sick todo/pr here would be to leverage the bernard journal to preform beyond the grave member lookups
+    return None
+
+@discord.bot.command(pass_context=True, no_pm=True, hidden=True)
+async def getid(ctx, target):
+    if common.isDiscordRegulator(ctx.message.author):
+        id = get_targeted_id(ctx)
+        await discord.bot.say(id)
+
 #function to build the roles list allowed to be punished, this is kinda hacky
 async def get_allowed_groups():
     global untouchable_roles
@@ -45,33 +70,36 @@ async def get_allowed_groups():
 discord.bot.loop.create_task(get_allowed_groups())
 
 #use the same check across all commands to see if the regulator is allowed to preform the action based on permission, role, status
-def allow_regulation(ctx):
+def allow_regulation(ctx, target_id):
     #has to be a regulator+
     if common.isDiscordRegulator(ctx.message.author) == True:
         pass
     else:
-        logger.info("Attempted to call allow_regulation but was rejected for: no permission")
+        logger.info("allow_regulation() attempted to invoke but was rejected for: no permission, Invoker: {}, Target:{}".format(ctx.author.mention.id, target_id))
         return False
 
-    #has to be a mention, not just typing a username
-    if len(ctx.message.mentions) == 0:
-        logger.info("Attempted to call allow_regulation but was rejected for: no mention")
+    #we need an ID to be able to work with, this should already be caught
+    if target_id is None:
         return False
-    else:
-        target = ctx.message.mentions[0]
 
     #dont let the user try to play themselves
-    if target.id == ctx.message.author.id:
-        logger.info("Attempted to call allow_regulation but was rejected for: self harm")
+    if target_id == ctx.message.author.id:
+        logger.info("allow_regulation() attempted to invoke but was rejected for: attempted self harm, Invoker: {}, Target:{}".format(ctx.author.mention.id, target_id))
         return False
 
     #if the user is an admin process it bypassing permissions
     if common.isDiscordAdministrator(ctx.message.author) == True:
         return True
 
+    #convert the target_id into a member object, or at least try. This is to cacluate if the user can be touched
+    target_member = discord.default_server.get_member(target_id)
+    if target_member is None:
+        logger.info("allow_regulation() bypassing action restriction since Member object cannot be created. Invoker: {}, Target: {}".format(ctx.author.mention.id, target_id))
+        return True
+
     #get the assigned role IDs
     target_roles = []
-    for role in target.roles:
+    for role in target_member.roles:
         target_roles.append(role.id)
 
     #convert the lists to sets
@@ -83,11 +111,11 @@ def allow_regulation(ctx):
     if len(allowed_set) == 0:
         return True
     else:
-        logger.info("Attempted to call allow_regulation but was rejected for: untouchable role")
+        logger.info("allow_regulation() attempted to invoke but was rejected for: protected role, Invoker: {}, Target:{}".format(ctx.author.mention.id, target_id))
         return False
 
     #failsafe to no if my bad logic fails
-    logger.info("Attempted to call allow_regulation but was rejected for: failsafe")
+    logger.info("allow_regulation() attempted to invoke but was rejected for: failsafe, Invoker: {}, Target:{}".format(ctx.author.mention.id, target_id))
     return False
 
 
@@ -97,19 +125,26 @@ async def kick(ctx, target, *, reason):
     if common.isDiscordRegulator(ctx.message.author) != True:
         return
 
-    #ban reason has to have at least a word in it
+    #convert the target into a usable ID
+    target_id = get_targeted_id(ctx)
+    target_member = discord.default_server.get_member(target_id)
+    if target_member is None:
+        await discord.bot.say("{} ⚠️ I was not able to lookup that user ID.".format(ctx.message.author.mention))
+        return
+
+    #kick reason has to have at least a word in it
     if len(reason) < 4:
         await discord.bot.say("⚠️ Kick reason must be longer than 4 characters. `!kick @username reason goes here`")
         return
 
-    if allow_regulation(ctx):
+    if allow_regulation(ctx, target_id):
         #return what is happening in the same channel to alert the user, wait 5 seconds and fire the kick command
-        await discord.bot.say("✔️ {} is kicking {} with the reason of `{}`.".format(ctx.message.author.mention, ctx.message.mentions[0].mention, reason))
+        await discord.bot.say("✔️ {} is kicking {} with the reason of `{}`.".format(ctx.message.author.mention, target_member.mention, reason))
         await asyncio.sleep(5)
-        await discord.bot.kick(ctx.message.mentions[0])
+        await discord.bot.kick(target_member)
 
         #update the internal bot log, since we cant send kick reasons via this api version #TODO: in rewrite add that
-        journal.update_journal_regulator(invoker=ctx.message.author.id, target=ctx.message.mentions[0].id, eventdata=reason, action="KICK_MEMBER", messageid=ctx.message.id)
+        journal.update_journal_regulator(invoker=ctx.message.author.id, target=target_id, eventdata=reason, action="KICK_MEMBER", messageid=ctx.message.id)
     else:
         await discord.bot.say("🛑 {} unable to moderate user. Either you failed to tag the user properly or the member is protected from regulators.".format(ctx.message.author.mention))
 
@@ -120,31 +155,40 @@ async def ban(ctx, target, *, reason):
     if common.isDiscordRegulator(ctx.message.author) != True:
         return
 
+    #convert the target into a usable ID
+    target_id = get_targeted_id(ctx)
+    target_member = discord.default_server.get_member(target_id)
+
     #ban reason has to have at least a word in it
-    if len(reason) < 10:
-        await discord.bot.say("⚠️ ban reason must be longer than 10 characters. `!ban @username reason goes here`")
+    if len(reason) < 4:
+        await discord.bot.say("⚠️ ban reason must be longer than 4 characters. `!ban @username reason goes here`")
         return
 
-    if allow_regulation(ctx):
-        await discord.bot.say("✔️ {} is **BANNING** {} with the reason of `{}`.".format(ctx.message.author.mention, ctx.message.mentions[0].mention, reason))
+    #if the user cannot be banned
+    if allow_regulation(ctx, target_id) is False:
+        await discord.bot.say("🛑 {} unable to moderate user. (no permissions)".format(ctx.message.author.mention))
+        return
+
+    #if we have a Member object, it is not retroactive and can be run live against discord
+    if target_member is not None:
+        await discord.bot.say("✔️ {} is **BANNING** {} with the reason of `{}`.".format(ctx.message.author.mention, target_member.mention, reason))
         await asyncio.sleep(5)
-        res = await common.ban_verbose(ctx.message.mentions[0], "{} - '{}'".format(ctx.message.author.name, reason))
-        if res == False:
-            await discord.bot.say("❓ Something's fucked! Unable to issue ban to Discord API. Bother cake.")
+        res = await common.ban_verbose(target_member, "{} - '{}'".format(ctx.message.author.name, reason))
+        if res is False:
+            await discord.bot.say("❓ Something's fucked! Unable to issue ban to Discord API. Bother <@{}>".format(config.cfg['bernard']['owner']))
         else:
-            journal.update_journal_regulator(invoker=ctx.message.author.id, target=ctx.message.mentions[0].id, eventdata=reason, action="BAN_MEMBER", messageid=ctx.message.id)
-    else:
+            journal.update_journal_regulator(invoker=ctx.message.author.id, target=target_id, eventdata=reason, action="BAN_MEMBER", messageid=ctx.message.id)
         #if a raw mention exists but not the Member object, handle it as retroactive and log who did it.
-        if len(ctx.message.raw_mentions) == 1 and len(ctx.message.mentions) == 0:
-            await discord.bot.say("✔️ {} is (retroactive) **BANNING** userid `{}` with the reason of `{}`.".format(ctx.message.author.mention, ctx.message.raw_mentions[0], reason))
+    elif target_id is not None and target_member is None:
+        await discord.bot.say("✔️ {} is (retroactive) **BANNING** userid `{}` with the reason of `{}`.".format(ctx.message.author.mention, target_id, reason))
 
-            journal.update_journal_regulator(invoker=ctx.message.author.id, target=ctx.message.raw_mentions[0], eventdata=reason, action="BAN_MEMBER_RETROACTIVE", messageid=ctx.message.id)
+        journal.update_journal_regulator(invoker=ctx.message.author.id, target=target_id, eventdata=reason, action="BAN_MEMBER_RETROACTIVE", messageid=ctx.message.id)
 
-            retroactive_reason = "VIA_RETROACTIVE: {} - '{}'".format(ctx.message.author.name, reason)
-            database.cursor.execute('INSERT INTO bans_retroactive (id, name, reason) VALUES (%s,%s,%s)',(ctx.message.raw_mentions[0], "N/A", retroactive_reason))
-            database.connection.commit()
-        else:
-            await discord.bot.say("🛑 {} unable to moderate user. Either you failed to tag the user properly or the member is protected from regulators.".format(ctx.message.author.mention))
+        retroactive_reason = "VIA_RETROACTIVE: {} - '{}'".format(ctx.message.author.name, reason)
+        database.cursor.execute('INSERT INTO bans_retroactive (id, name, reason) VALUES (%s,%s,%s)',(target_id, "N/A", retroactive_reason))
+        database.connection.commit()
+    else:
+        await discord.bot.say("🛑 {} unable to moderate user. Target did not resolve to a valid Discord Member.".format(ctx.message.author.mention))
 
 #anti-raid/easy cleanup code, used to mass ban my ingress point
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
@@ -204,17 +248,20 @@ async def inviteban(ctx, target, *, reason):
 # handle unbans of regs own bans, also allow admins to unban anyone by id
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
 async def unban(ctx, target):
+    target_id = get_targeted_id(ctx)
+    target_member = discord.default_server.get_member(target_id)
+
     if common.isDiscordAdministrator(ctx.message.author):
         #if the user is an admin, let them blindly call IDs, unban blindly from discord
-        unban_status_discord = await common.unban_id(target)
+        unban_status_discord = await common.unban_id(target_id)
 
         #also check the retroactive table, this can be useful if the user was retro banned but never rejoied
-        database.cursor.execute('SELECT * FROM bans_retroactive WHERE id=%s', (target,))
+        database.cursor.execute('SELECT * FROM bans_retroactive WHERE id=%s', (target_id,))
         unban_status_retroactive = database.cursor.fetchone()
         if unban_status_retroactive is None:
             unban_status_retroactive = False
         else:
-            database.cursor.execute('DELETE FROM bans_retroactive WHERE id=%s', (target,))
+            database.cursor.execute('DELETE FROM bans_retroactive WHERE id=%s', (target_id,))
             database.connection.commit()
 
         #unban message logic
@@ -228,13 +275,13 @@ async def unban(ctx, target):
             await discord.bot.say("✔️ User was found banned on Discord and Retroactive ban table. Removed ban and database entry.")
     elif common.isDiscordRegulator(ctx.message.author):
         #regulators have a slightly different logic to follow to allow. Use internal audit log to make decisions
-        database.cursor.execute('SELECT * FROM journal_regulators WHERE id_targeted=%s AND id_invoker=%s AND action="BAN_MEMBER" ORDER BY time ASC', (target, ctx.message.author.id))
+        database.cursor.execute('SELECT * FROM journal_regulators WHERE id_targeted=%s AND id_invoker=%s AND action="BAN_MEMBER" ORDER BY time ASC', (target_id, ctx.message.author.id))
         regulator_target_history = database.cursor.fetchone()
 
         #if there is nothing in the database there is no reason to even try with the logic
         if regulator_target_history is None:
-            logger.warn("{0} attempted unban of {1} ID but failed due to reason: DB_RETURNED_NONE".format(ctx.message.author.id, target))
-            await discord.bot.say("⚠️ {0.message.author.mention} Unable to find any record of you banning ID `{1}` (ever). You can only unban people you yourself banned.".format(ctx, target))
+            logger.warn("{0} attempted unban of {1} ID but failed due to reason: DB_RETURNED_NONE".format(ctx.message.author.id, target_id))
+            await discord.bot.say("⚠️ {0.message.author.mention} Unable to find any record of you banning ID `{1}` (ever). You can only unban people you yourself banned.".format(ctx, target_id))
             return
 
         #get how many mins ago the ban was to see if they are able to be unbanned
@@ -243,17 +290,17 @@ async def unban(ctx, target):
         #handle if we should process the unban_id()
         if banned_mins_ago > config.cfg['regulators']['unban_grace_mins']:
             over_grace_mins = int(banned_mins_ago - config.cfg['regulators']['unban_grace_mins'])
-            logger.warn("{0} attempted unban of {1} ID but failed due to reason: OVER_GRACE_PERIOD by {2} minutes".format(ctx.message.author.id, target, over_grace_mins))
-            await discord.bot.say("⚠️ {0.message.author.mention} The user ID `{1}` is over the grace period for regulator unbans by `{2}` minutes. Contact an Administrator.".format(ctx, target, over_grace_mins))
+            logger.warn("{0} attempted unban of {1} ID but failed due to reason: OVER_GRACE_PERIOD by {2} minutes".format(ctx.message.author.id, target_id, over_grace_mins))
+            await discord.bot.say("⚠️ {0.message.author.mention} The user ID `{1}` is over the grace period for regulator unbans by `{2}` minutes. Contact an Administrator.".format(ctx, target_id, over_grace_mins))
         else:
-            unban_status_discord = await common.unban_id(target)
+            unban_status_discord = await common.unban_id(target_id)
             if unban_status_discord is False:
-                logger.warn("{0} attempted unban of {1} ID but failed due to reason: DISCORD_RETURNED_NOT_BANNED".format(ctx.message.author.id, target))
-                await discord.bot.say("⚠️ {0.message.author.mention}  Discord returned no ban found for ID `{1}` (ever). The user was already unbanned or something is wrong :/".format(ctx, target))
+                logger.warn("{0} attempted unban of {1} ID but failed due to reason: DISCORD_RETURNED_NOT_BANNED".format(ctx.message.author.id, target_id))
+                await discord.bot.say("⚠️ {0.message.author.mention}  Discord returned no ban found for ID `{1}` (ever). The user was already unbanned or something is wrong :/".format(ctx, target_id))
             else:
-                logger.info("{0} unbanned {1}. Time elapsed since ban {2}".format(ctx.message.author.id, target, banned_mins_ago))
+                logger.info("{0} unbanned {1}. Time elapsed since ban {2}".format(ctx.message.author.id, target_id, banned_mins_ago))
                 await discord.bot.say("✔️ {0.message.author.mention} ID `{1}` has been unbanned!".format(ctx, target))
-                journal.update_journal_regulator(invoker=ctx.message.author.id, target=target, eventdata=banned_mins_ago, action="UNBAN_MEMBER_GRACE", messageid=ctx.message.id)
+                journal.update_journal_regulator(invoker=ctx.message.author.id, target=target_id, eventdata=banned_mins_ago, action="UNBAN_MEMBER_GRACE", messageid=ctx.message.id)
 
 #strip member of rights to talk in voice rooms
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
@@ -261,17 +308,24 @@ async def silence(ctx, target, *, reason):
     if common.isDiscordRegulator(ctx.message.author) != True:
         return
 
+    target_id = get_targeted_id(ctx)
+    target_member = discord.default_server.get_member(target_id)
+
     #ban reason has to have at least a word in it
     if len(reason) < 4:
         await discord.bot.say("⚠️ Silence reason must be longer than 4 characters. `!silence @username reason goes here`")
         return
 
-    if allow_regulation(ctx):
-        await discord.bot.server_voice_state(ctx.message.mentions[0], mute=1)
-        journal.update_journal_regulator(invoker=ctx.message.author.id, target=ctx.message.mentions[0].id, eventdata=reason, action="VOICE_SILENCE", messageid=ctx.message.id)
-        await discord.bot.say("✔️ {} was silenced by {} in voice chat!".format(ctx.message.mentions[0].mention, ctx.message.author.mention))
+    if allow_regulation(ctx, target_id) is False:
+        await discord.bot.say("⚠️{} Permissions denied to regulate user".format(ctx.message.author.mention))
+        return
+
+    if target_member is not None:
+        await discord.bot.server_voice_state(target_member, mute=1)
+        journal.update_journal_regulator(invoker=ctx.message.author.id, target=target_id, eventdata=reason, action="VOICE_SILENCE", messageid=ctx.message.id)
+        await discord.bot.say("✔️ {} was silenced by {} in voice chat".format(target_member.mention, ctx.message.author.mention))
     else:
-        await discord.bot.say("🛑 {} unable to moderate user. Either you failed to tag the user properly or the member is protected from regulators.".format(ctx.message.author.mention))
+        await discord.bot.say("🛑 {} unable to moderate user. Target did not resolve to a valid Discord Member.".format(ctx.message.author.mention))
 
 #return member rights to talk in voice rooms
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
@@ -279,9 +333,16 @@ async def unsilence(ctx, target):
     if common.isDiscordRegulator(ctx.message.author) != True:
         return
 
-    if allow_regulation(ctx):
-        await discord.bot.server_voice_state(ctx.message.mentions[0], mute=0)
-        journal.update_journal_regulator(invoker=ctx.message.author.id, target=ctx.message.mentions[0].id, eventdata="None", action="VOICE_UNSILENCE", messageid=ctx.message.id)
-        await discord.bot.say("✔️ {} was unsilenced by {} in voice chat!".format(ctx.message.mentions[0].mention, ctx.message.author.mention))
+    target_id = get_targeted_id(ctx)
+    target_member = discord.default_server.get_member(target_id)
+
+    if allow_regulation(ctx, target_id) is False:
+        await discord.bot.say("⚠️{} Permissions denied to regulate user".format(ctx.message.author.mention))
+        return
+
+    if target_member is not None:
+        await discord.bot.server_voice_state(target_member, mute=0)
+        journal.update_journal_regulator(invoker=ctx.message.author.id, target=target_id, eventdata="None", action="VOICE_UNSILENCE", messageid=ctx.message.id)
+        await discord.bot.say("✔️ {} was unsilenced by {} in voice chat!".format(target_member.mention, ctx.message.author.mention))
     else:
-        await discord.bot.say("🛑 {} unable to moderate user. Either you failed to tag the user properly or the member is protected from regulators.".format(ctx.message.author.mention))
+        await discord.bot.say("🛑 {} unable to moderate user. Target did not resolve to a valid Discord Member.".format(ctx.message.author.mention))
