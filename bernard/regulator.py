@@ -119,6 +119,40 @@ def allow_regulation(ctx, target_id):
     return False
 
 
+# formally warn a user, must supply a user mention and string longer than 4 chars to land
+@discord.bot.command(pass_context=True, no_pm=True, hidden=True)
+async def warn(ctx, target, *, reason):
+    if common.isDiscordRegulator(ctx.message.author) != True:
+        return
+
+    # convert the target into a usable ID
+    target_id = get_targeted_id(ctx)
+    target_member = discord.default_server.get_member(target_id)
+    if target_member is None:
+        await discord.bot.say("{} ⚠️ I was not able to lookup that user ID.".format(ctx.message.author.mention))
+        return
+
+    # warn reason has to have at least a word in it
+    if len(reason) < 4:
+        await discord.bot.say("⚠️ Warning reason must be longer than 4 characters. `!warn @username reason goes here`")
+        return
+
+    if allow_regulation(ctx, target_id):
+        # return what is happening in the same channel to alert the user
+        await discord.bot.say("✔️ {} is warning {} with the reason of `{}`.".format(ctx.message.author.mention, target_member.mention, reason))
+
+        # update the internal bot log
+        journal.update_journal_regulator(invoker=ctx.message.author.id, target=target_id, eventdata=reason, action="WARN_MEMBER", messageid=ctx.message.id)
+
+        # update the internal user log
+        journal.update_journal_event(module=__name__, event="ON_MEMBER_WARN", userid=target_id,
+                                     contents="{0.name}#{0.discriminator} "
+                                              "warned by {1.name}#{1.discriminator} "
+                                              "with reason '{2}'".format(target_member, ctx.message.author, reason))
+    else:
+        await discord.bot.say("🛑 {} unable to moderate user. Either you failed to tag the user properly or the member is protected from regulators.".format(ctx.message.author.mention))
+
+
 #kick a user from the server, must supply a user mention and string longer than 4 chars to land
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
 async def kick(ctx, target, *, reason):
