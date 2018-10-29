@@ -18,29 +18,10 @@ TODO:
 - public command to query reuglator actions
 """
 
-#uniform the user ID input to streamline regulator usefulness
-def get_targeted_id(ctx):
-    #if it's in the format of a mention, raw_mention should catch this - returns for @mentions and <@fakementions>
-    if len(ctx.message.raw_mentions) == 1:
-        return ctx.message.raw_mentions[0]
-
-    #if it's an integer lets just pass that along and not care if it's valid (the functions should confirm) - returns for raw ID entry
-    raw_mention = ctx.message.content.split()[1]
-    if raw_mention.isdigit():
-        return raw_mention
-
-    #try to handle for mention'ed names in normie format - returns for ILiedAboutCake#0420
-    result = discord.default_server.get_member_named(raw_mention)
-    if result is not None:
-        return result.id
-
-    #a sick todo/pr here would be to leverage the bernard journal to preform beyond the grave member lookups
-    return None
-
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
 async def getid(ctx, target):
     if common.isDiscordRegulator(ctx.message.author):
-        id = get_targeted_id(ctx)
+        id = discord.get_targeted_id(ctx)
         await discord.bot.say(id)
 
 #function to build the roles list allowed to be punished, this is kinda hacky
@@ -111,11 +92,11 @@ def allow_regulation(ctx, target_id):
     if len(allowed_set) == 0:
         return True
     else:
-        logger.info("allow_regulation() attempted to invoke but was rejected for: protected role, Invoker: {}, Target:{}".format(ctx.method.author.id, target_id))
+        logger.info("allow_regulation() attempted to invoke but was rejected for: protected role, Invoker: {}, Target:{}".format(ctx.message.author.id, target_id))
         return False
 
     #failsafe to no if my bad logic fails
-    logger.info("allow_regulation() attempted to invoke but was rejected for: failsafe, Invoker: {}, Target:{}".format(ctx.method.author.id, target_id))
+    logger.info("allow_regulation() attempted to invoke but was rejected for: failsafe, Invoker: {}, Target:{}".format(ctx.message.author.id, target_id))
     return False
 
 
@@ -126,7 +107,7 @@ async def warn(ctx, target, *, reason):
         return
 
     # convert the target into a usable ID
-    target_id = get_targeted_id(ctx)
+    target_id = discord.get_targeted_id(ctx)
     target_member = discord.default_server.get_member(target_id)
     if target_member is None:
         await discord.bot.say("{} ⚠️ I was not able to lookup that user ID.".format(ctx.message.author.mention))
@@ -160,7 +141,7 @@ async def kick(ctx, target, *, reason):
         return
 
     #convert the target into a usable ID
-    target_id = get_targeted_id(ctx)
+    target_id = discord.get_targeted_id(ctx)
     target_member = discord.default_server.get_member(target_id)
     if target_member is None:
         await discord.bot.say("{} ⚠️ I was not able to lookup that user ID.".format(ctx.message.author.mention))
@@ -190,7 +171,7 @@ async def ban(ctx, target, *, reason):
         return
 
     #convert the target into a usable ID
-    target_id = get_targeted_id(ctx)
+    target_id = discord.get_targeted_id(ctx)
     target_member = discord.default_server.get_member(target_id)
 
     #ban reason has to have at least a word in it
@@ -282,7 +263,7 @@ async def inviteban(ctx, target, *, reason):
 # handle unbans of regs own bans, also allow admins to unban anyone by id
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
 async def unban(ctx, target):
-    target_id = get_targeted_id(ctx)
+    target_id = discord.get_targeted_id(ctx)
     target_member = discord.default_server.get_member(target_id)
 
     if common.isDiscordAdministrator(ctx.message.author):
@@ -342,7 +323,7 @@ async def silence(ctx, target, *, reason):
     if common.isDiscordRegulator(ctx.message.author) != True:
         return
 
-    target_id = get_targeted_id(ctx)
+    target_id = discord.get_targeted_id(ctx)
     target_member = discord.default_server.get_member(target_id)
 
     #ban reason has to have at least a word in it
@@ -367,7 +348,7 @@ async def unsilence(ctx, target):
     if common.isDiscordRegulator(ctx.message.author) != True:
         return
 
-    target_id = get_targeted_id(ctx)
+    target_id = discord.get_targeted_id(ctx)
     target_member = discord.default_server.get_member(target_id)
 
     if allow_regulation(ctx, target_id) is False:
