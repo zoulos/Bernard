@@ -15,19 +15,15 @@ async def journal(ctx, user: str):
     if common.isDiscordRegulator(ctx.message.author) is False:
         return
 
-    try:
-        member = ctx.message.mentions[0]
-    except IndexError:
-        member = ctx.message.server.get_member(user)
-        if member is None:
-            member = ctx.message.server.get_member_named(user)
+    target_id = discord.get_targeted_id(ctx)
+    target_member = discord.default_server.get_member(target_id)
 
-    if member is None:
-        database.cursor.execute('SELECT * from journal_events WHERE userid=%s ORDER BY time DESC LIMIT 5', (user,))
+    if target_id is None:
+        database.cursor.execute('SELECT * from journal_events WHERE userid=%s ORDER BY time DESC LIMIT 5', (target_id,))
         emd = discord.embeds.Embed(title='Last 5 events for ({0})'.format(user), color=0xE79015)
     else:
-        database.cursor.execute('SELECT * from journal_events WHERE userid=%s ORDER BY time DESC LIMIT 5', (member.id,))
-        emd = discord.embeds.Embed(title='Last 5 events for "{0.name}" ({0.id})'.format(member), color=0xE79015)
+        database.cursor.execute('SELECT * from journal_events WHERE userid=%s ORDER BY time DESC LIMIT 5', (target_id,))
+        emd = discord.embeds.Embed(title='Last 5 events for "{0.name}" ({0.id})'.format(target_member), color=0xE79015)
 
     dbres = database.cursor.fetchall()
 
@@ -44,23 +40,21 @@ async def journal(ctx, user: str):
 async def rapsheet(ctx, user: str):
     if common.isDiscordRegulator(ctx.message.author) is False:
         return
-    try:
-        member = ctx.message.mentions[0]
-    except IndexError:
-        member = ctx.message.server.get_member(user)
-        if member is None:
-            member = ctx.message.server.get_member_named(user)
+
+    #get the lookup data
+    target_id = discord.get_targeted_id(ctx)
+    target_member = discord.default_server.get_member(target_id)
 
     emd = discord.embeds.Embed(title="__Moderation Statistics__",
                                colour=discord.discord.Color.red(),
                                timestamp=datetime.utcnow())
-    if member is None:
-        database.cursor.execute('SELECT * from journal_regulators WHERE id_targeted=%s ORDER BY time DESC', (user,))
-        emd.set_author(name="User {0}".format(user))
+    if target_member is None:
+        database.cursor.execute('SELECT * from journal_regulators WHERE id_targeted=%s ORDER BY time DESC', (target_id,))
+        emd.set_author(name="User {0}".format(target_id))
     else:
-        database.cursor.execute('SELECT * from journal_regulators WHERE id_targeted=%s ORDER BY time DESC', (member.id,))
-        emd.set_author(name=member.name, icon_url=member.avatar_url)
-        emd.set_thumbnail(url=member.avatar_url)
+        database.cursor.execute('SELECT * from journal_regulators WHERE id_targeted=%s ORDER BY time DESC', (target_id,))
+        emd.set_author(name=target_member.name, icon_url=target_member.avatar_url)
+        emd.set_thumbnail(url=target_member.avatar_url)
 
     dbres = database.cursor.fetchall()
 
@@ -88,12 +82,12 @@ async def rapsheet(ctx, user: str):
             emd.add_field(name="Warnings: {0}".format(warnCount), value="N/A", inline=False)
         else:
             emd.add_field(name="Warnings: {0}".format(warnCount), value=warns, inline=False)
-        
+
         if mutes == "":
             emd.add_field(name="Mutes: {0}".format(muteCount), value="N/A", inline=False)
         else:
             emd.add_field(name="Mutes: {0}".format(muteCount), value=mutes, inline=False)
-        
+
         if kicks == "":
             emd.add_field(name="Kicks: {0}".format(kickCount), value="N/A", inline=False)
         else:
@@ -106,7 +100,6 @@ async def rapsheet(ctx, user: str):
 
         emd.add_field(name="First Moderation", value=datetime.fromtimestamp(float(dbres[-1]['time'])).isoformat(), inline=True)
         emd.add_field(name="Most Recent Moderation", value=datetime.fromtimestamp(float(dbres[0]['time'])).isoformat(), inline=True)
-        emd.set_footer(text="Generated", icon_url="https://cdn.discordapp.com/emojis/399640604755361792.png?v=1")
         await discord.bot.say(embed=emd)
 
 

@@ -54,3 +54,22 @@ def objectFactory(snowflake):
 
 def mod_channel():
     return discord.Object(config.cfg['bernard']['channel'])
+
+#uniform the user ID input to streamline regulator usefulness
+def get_targeted_id(ctx):
+    #if it's in the format of a mention, raw_mention should catch this - returns for @mentions and <@fakementions>
+    if len(ctx.message.raw_mentions) == 1:
+        return ctx.message.raw_mentions[0]
+
+    #if it's an integer lets just pass that along and not care if it's valid (the functions should confirm) - returns for raw ID entry
+    raw_mention = ctx.message.content.split()[1]
+    if raw_mention.isdigit():
+        return raw_mention
+
+    #try to handle for mention'ed names in normie format - returns for ILiedAboutCake#0420
+    result = default_server.get_member_named(raw_mention)
+    if result is not None:
+        return result.id
+
+    #a sick todo/pr here would be to leverage the bernard journal to preform beyond the grave member lookups
+    return None
