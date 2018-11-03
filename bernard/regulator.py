@@ -320,7 +320,7 @@ async def unban(ctx, target):
 #strip member of rights to talk in voice rooms
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
 async def silence(ctx, target, *, reason):
-    if common.isDiscordRegulator(ctx.message.author) != True:
+    if common.isDiscordVoiceRegulator(ctx.message.author) != True:
         return
 
     target_id = discord.get_targeted_id(ctx)
@@ -345,7 +345,7 @@ async def silence(ctx, target, *, reason):
 #return member rights to talk in voice rooms
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
 async def unsilence(ctx, target):
-    if common.isDiscordRegulator(ctx.message.author) != True:
+    if common.isDiscordVoiceRegulator(ctx.message.author) != True:
         return
 
     target_id = discord.get_targeted_id(ctx)

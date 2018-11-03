@@ -30,13 +30,33 @@ def isDiscordRegulator(member):
 
     try:
         for role in member.roles:
-            if role.id == config.cfg['bernard']['administrators']: return True
-            if role.id == config.cfg['bernard']['regulators']: return True
-            if role.id == config.cfg['bernard']['politics_regulators']: return True
+            if role.id in config.cfg['bernard']['regulators']:
+                return True
     except AttributeError:
         return False
 
     return False
+
+#common name for this role is a deputy, this grants the least power
+def isDiscordVoiceRegulator(member):
+    if isDiscordBotOwner(member.id):
+        return True
+    elif isDiscordAdministrator(member):
+        return True
+    elif isDiscordRegulator(member):
+        return True
+    else:
+        try:
+            for role in member.roles:
+                if role.id in config.cfg['bernard']['voice_regulators']:
+                    return True
+                else:
+                    return False
+        except AttributeError:
+            return False
+
+    return False
+
 
 def datetimeObjectToString(timestamp):
     return timestamp.strftime("%Y-%m-%d %H:%M:%S")
