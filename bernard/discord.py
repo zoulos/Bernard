@@ -73,3 +73,7 @@ def get_targeted_id(ctx):
 
     #a sick todo/pr here would be to leverage the bernard journal to preform beyond the grave member lookups
     return None
+
+
+def get_user_info(uid):
+    return bot.get_user_info(uid)

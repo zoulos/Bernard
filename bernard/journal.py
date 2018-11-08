@@ -43,7 +43,7 @@ async def rapsheet(ctx, user: str):
 
     #get the lookup data
     target_id = discord.get_targeted_id(ctx)
-    target_member = discord.default_server.get_member(target_id)
+    target_member = await discord.get_user_info(target_id)
 
     emd = discord.embeds.Embed(title="__Moderation Statistics__",
                                colour=discord.discord.Color.red(),
@@ -53,7 +53,7 @@ async def rapsheet(ctx, user: str):
         emd.set_author(name="User {0}".format(target_id))
     else:
         database.cursor.execute('SELECT * from journal_regulators WHERE id_targeted=%s ORDER BY time DESC', (target_id,))
-        emd.set_author(name=target_member.name, icon_url=target_member.avatar_url)
+        emd.set_author(name="{0}     (ID: {1})".format(target_member.name, target_member.id), icon_url=target_member.avatar_url)
         emd.set_thumbnail(url=target_member.avatar_url)
 
     dbres = database.cursor.fetchall()
@@ -65,18 +65,19 @@ async def rapsheet(ctx, user: str):
         warnCount, muteCount, kickCount, banCount = 0, 0, 0, 0
         warns, mutes, kicks, bans = "", "", "", ""
         for row in dbres:
+            invoker = await discord.get_user_info(row['id_invoker'])
             if row['action'] == "WARN_MEMBER":
                 warnCount += 1
-                warns += "{0} - *{1}*\n".format(datetime.fromtimestamp(float(row['time'])).date().isoformat(), row['id_message'])
+                warns += "{0} - {1} --- *{2}*\n".format(datetime.fromtimestamp(float(row['time'])).date().isoformat(), invoker.mention, row['id_message'])
             elif row['action'] == "VOICE_SILENCE":
                 muteCount += 1
-                mutes += "{0} - *{1}*\n".format(datetime.fromtimestamp(float(row['time'])).date().isoformat(), row['id_message'])
+                mutes += "{0} - {1} --- *{2}*\n".format(datetime.fromtimestamp(float(row['time'])).date().isoformat(), invoker.mention, row['id_message'])
             elif row['action'] == "KICK_MEMBER":
                 kickCount += 1
-                kicks += "{0} - *{1}*\n".format(datetime.fromtimestamp(float(row['time'])).date().isoformat(), row['id_message'])
+                kicks += "{0} - {1} --- *{2}*\n".format(datetime.fromtimestamp(float(row['time'])).date().isoformat(), invoker.mention, row['id_message'])
             elif row['action'] == "BAN_MEMBER":
                 banCount += 1
-                bans += "{0} - *{1}*\n".format(datetime.fromtimestamp(float(row['time'])).date().isoformat(), row['id_message'])
+                bans += "{0} - {1} --- *{2}*\n".format(datetime.fromtimestamp(float(row['time'])).date().isoformat(), invoker.mention, row['id_message'])
 
         if warns == "":
             emd.add_field(name="Warnings: {0}".format(warnCount), value="N/A", inline=False)
