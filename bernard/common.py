@@ -27,6 +27,7 @@ def isDiscordAdministrator(member):
 #regulators that can control some basic mod tasks
 def isDiscordRegulator(member):
     if isDiscordBotOwner(member.id): return True
+    if isDiscordAdministrator(member): return True
 
     try:
         for role in member.roles:
