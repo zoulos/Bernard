@@ -38,6 +38,11 @@ async def cleanup(ctx, target=None, history=100):
     else:
         member = ctx.message.server.get_member(target)
 
+    #if xiphirx = soy
+    if member == discord.bot.user:
+        await discord.bot.say("⚠️{0.message.author.mention} you are not allowed to cleanup after the bot!".format(ctx))
+        return
+
     #dont allow this to be called on regulators/administrators
     if member is None:
         pass
