@@ -16,7 +16,7 @@ async def journal(ctx, user: str):
         return
 
     target_id = discord.get_targeted_id(ctx)
-    target_member = discord.default_server.get_member(target_id)
+    target_member = await discord.get_user_info(target_id)
 
     if target_id is None:
         database.cursor.execute('SELECT * from journal_events WHERE userid=%s ORDER BY time DESC LIMIT 5', (target_id,))
@@ -37,7 +37,7 @@ async def journal(ctx, user: str):
 
 
 @discord.bot.command(pass_context=True, hidden=True)
-async def rapsheet(ctx, user: str):
+async def rapsheet(ctx):
     if common.isDiscordRegulator(ctx.message.author) is False:
         return
 
