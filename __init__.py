@@ -23,6 +23,7 @@ import bernard.auditing
 import bernard.purger
 import bernard.memberstate
 import bernard.deleted
+import bernard.edited
 import bernard.invites
 import bernard.housekeeping
 import bernard.antispam
