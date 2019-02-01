@@ -49,11 +49,18 @@ if config.cfg['bernard']['debug'] is False:
     async def on_command_error(error, ctx):
         logger.info("Uncaught command triggered: \"{0}\" {1}".format(error, ctx))
 
+
 def objectFactory(snowflake):
     return discord.Object(snowflake)
 
+
 def mod_channel():
-    return discord.Object(config.cfg['bernard']['channel'])
+    return discord.Object(config.cfg['bernard']['activity_channel'])
+
+
+def messages_channel():
+    return discord.Object(config.cfg['bernard']['message_channel'])
+
 
 #uniform the user ID input to streamline regulator usefulness
 def get_targeted_id(ctx):

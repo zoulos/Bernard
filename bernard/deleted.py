@@ -31,7 +31,7 @@ async def on_message_delete(message):
         msg = "{0.author.mention} (Name:`{0.author}` ID:`{0.author.id}`) in {0.channel.mention} \n Message: \"`{0.content}`\" \n\n".format(message)
         journal_msg = "Text: {0.content}".format(message)
 
-    await discord.bot.send_message(discord.mod_channel(), "{0} **Caught Deleted Message!** {1}".format(common.bernardUTCTimeNow(), msg))
+    await discord.bot.send_message(discord.messages_channel(), "{0} **Caught Deleted Message!** {1}".format(common.bernardUTCTimeNow(), msg))
 
     journal.update_journal_event(module=__name__, event="ON_MESSAGE_DELETE", userid=message.author.id, eventid=message.id, contents=journal_msg)
 
