@@ -41,27 +41,42 @@ async def rapsheet(ctx):
     if common.isDiscordRegulator(ctx.message.author) is False:
         return
 
-    #get the lookup data
+    # Get the member
     target_id = discord.get_targeted_id(ctx)
     target_member = await discord.get_user_info(target_id)
 
-    emd = discord.embeds.Embed(title="__Moderation Statistics__",
-                               colour=discord.discord.Color.red(),
-                               timestamp=datetime.utcnow())
-    if target_member is None:
-        database.cursor.execute('SELECT * from journal_regulators WHERE id_targeted=%s ORDER BY time DESC', (target_id,))
-        emd.set_author(name="User {0}".format(target_id))
-    else:
-        database.cursor.execute('SELECT * from journal_regulators WHERE id_targeted=%s ORDER BY time DESC', (target_id,))
-        emd.set_author(name="{0}     (ID: {1})".format(target_member.name, target_member.id), icon_url=target_member.avatar_url)
-        emd.set_thumbnail(url=target_member.avatar_url)
-
+    # Pull all their regulator actions, ignoring un-silence events.
+    database.cursor.execute('SELECT * from journal_regulators WHERE id_targeted=%s AND NOT action = \'VOICE_UNSILENCE\' ORDER BY time DESC', (target_id,))
     dbres = database.cursor.fetchall()
 
+    # Get the first event in the logs for the user as a "first seen" date
+    database.cursor.execute('SELECT MIN(time) AS \'time\' FROM journal_events WHERE userid = %s', (target_id,))
+    first_seen = database.cursor.fetchall()
+
+    # If no events are returned, generate and send a clean rapsheet
     if len(dbres) == 0:
-        await discord.bot.say("No previous moderation actions found for user.")
+        emd = discord.embeds.Embed(title="__Moderation Statistics__",
+                                   colour=discord.discord.Color.green(),
+                                   timestamp=datetime.utcnow())
+
+        emd.set_author(name="{0}     (ID: {1})".format(target_member.name, target_member.id),
+                       icon_url=target_member.avatar_url)
+        emd.set_thumbnail(url=target_member.avatar_url)
+        emd.add_field(name="No previous moderation actions found for user.",
+                      value="First Seen - {0}".format(datetime.fromtimestamp(first_seen[0]['time']).strftime('%Y-%m-%d @ %H:%M:%S')))
+
+        await discord.bot.say(embed=emd)
         return
+    # Otherwise, total up all the events, generate, and send a dirty rapsheet
     else:
+        emd = discord.embeds.Embed(title="__Moderation Statistics__",
+                                   colour=discord.discord.Color.red(),
+                                   timestamp=datetime.utcnow())
+
+        emd.set_author(name="{0}     (ID: {1})".format(target_member.name, target_member.id),
+                       icon_url=target_member.avatar_url)
+        emd.set_thumbnail(url=target_member.avatar_url)
+
         warnCount, muteCount, kickCount, banCount = 0, 0, 0, 0
         warns, mutes, kicks, bans = "", "", "", ""
         for row in dbres:
@@ -99,8 +114,9 @@ async def rapsheet(ctx):
         else:
             emd.add_field(name="Bans: {0}".format(banCount), value=bans, inline=False)
 
-        emd.add_field(name="First Moderation", value=datetime.fromtimestamp(float(dbres[-1]['time'])).isoformat(), inline=True)
-        emd.add_field(name="Most Recent Moderation", value=datetime.fromtimestamp(float(dbres[0]['time'])).isoformat(), inline=True)
+        emd.add_field(name="First Seen", value=datetime.fromtimestamp(first_seen[0]['time']).strftime('%Y-%m-%d @ %H:%M:%S'), inline=True)
+        emd.add_field(name="Time Since Moderation", value=str(datetime.now()-datetime.fromtimestamp(float(dbres[0]['time']))).split('.')[0], inline=True)
+
         await discord.bot.say(embed=emd)
 
 

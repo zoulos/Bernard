@@ -42,8 +42,8 @@ async def journal_events_cleanup():
         db_cutoff = int(utc_now - seconds_grace)
         logger.info("journal_events_cleanup() attempting purge of deleted messages older than {0} seconds ({1}) days".format(seconds_grace, config.cfg['housekeeping']['journal_events_cleanup']['days_to_keep']))
 
-        #delete the records for deleted messages over configured date
-        database.cursor.execute("DELETE from journal_events where event='ON_MESSAGE_DELETE' and time<%s order by time desc", (db_cutoff,))
+        #delete the records for deleted and edited messages over configured date
+        database.cursor.execute("DELETE from journal_events where event='ON_MESSAGE_DELETE' OR event = 'ON_MESSAGE_EDIT' and time<%s order by time desc", (db_cutoff,))
         deleted_records_count = database.cursor.rowcount
 
         #log internally and update the modlog channel
