@@ -24,7 +24,7 @@ async def on_message_edit(before, after):
                   "{1.author.mention} (Name:`{1.author}` ID:`{1.author.id}`) in {1.channel.mention} \n" \
                   "  Original: \"`{1.content}`\" \n\n" \
                   "  Edited: \"`{2.content}`\" \n".format(common.bernardUTCTimeNow(), before, after)
-            msg_sent = await discord.bot.send_message(discord.mod_channel(), msg)
+            msg_sent = await discord.bot.send_message(discord.messages_channel(), msg)
         else:
             msgs = [
                 "{0} **Caught Edited Message! (WARNING: may be truncated)** {1.author.mention} (Name:`{1.author}` ID:`{1.author.id}`) in {1.channel.mention}".format(
@@ -34,7 +34,7 @@ async def on_message_edit(before, after):
             ]
 
             for msg in msgs:
-                msg_sent = await discord.bot.send_message(discord.mod_channel(), msg)
+                msg_sent = await discord.bot.send_message(discord.messages_channel(), msg)
 
         journal_msg = "https://discordapp.com/channels/{0.channel.server.id}/{0.channel.id}/{0.id}".format(msg_sent)
         journal.update_journal_event(module=__name__, event="ON_MESSAGE_EDIT", userid=before.author.id,
