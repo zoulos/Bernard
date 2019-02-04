@@ -62,8 +62,13 @@ async def rapsheet(ctx):
         emd.set_author(name="{0}     (ID: {1})".format(target_member.name, target_member.id),
                        icon_url=target_member.avatar_url)
         emd.set_thumbnail(url=target_member.avatar_url)
-        emd.add_field(name="No previous moderation actions found for user.",
-                      value="First Seen - {0}".format(datetime.fromtimestamp(first_seen[0]['time']).strftime('%Y-%m-%d @ %H:%M:%S')))
+
+        if first_seen is None:
+            emd.add_field(name="No previous moderation actions found for user.",
+                          value="First Seen - Unknown")
+        else:
+            emd.add_field(name="No previous moderation actions found for user.",
+                          value="First Seen - {0}".format(datetime.fromtimestamp(first_seen[0]['time']).strftime('%Y-%m-%d @ %H:%M:%S')))
 
         await discord.bot.say(embed=emd)
         return
