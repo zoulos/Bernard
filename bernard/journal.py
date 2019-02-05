@@ -63,7 +63,7 @@ async def rapsheet(ctx):
                        icon_url=target_member.avatar_url)
         emd.set_thumbnail(url=target_member.avatar_url)
 
-        if first_seen is None:
+        if first_seen[0]['time'] is None:
             emd.add_field(name="No previous moderation actions found for user.",
                           value="First Seen - Unknown")
         else:
