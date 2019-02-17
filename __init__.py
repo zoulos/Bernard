@@ -32,5 +32,9 @@ import bernard.regulator
 #entitlement modules
 import bernard.subscriber
 
+#background jobs
+import bernard.scheduler
+import bernard.remind
+
 logger.warn("STARTING DISCORD BOT...")
 bernard.discord.bot.run(bernard.config.cfg['discord']['token'])

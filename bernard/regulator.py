@@ -3,6 +3,7 @@ import bernard.common as common
 import bernard.discord as discord
 import bernard.journal as journal
 import bernard.database as database
+import bernard.scheduler as scheduler
 import asyncio
 import aiohttp
 import logging
@@ -204,6 +205,66 @@ async def ban(ctx, target, *, reason):
         database.connection.commit()
     else:
         await discord.bot.say("🛑 {} unable to moderate user. Target did not resolve to a valid Discord Member.".format(ctx.message.author.mention))
+
+@discord.bot.command(pass_context=True, no_pm=True, hidden=True)
+async def timedban(ctx, target, duration, *, reason):
+    if common.isDiscordRegulator(ctx.message.author) != True:
+        return
+
+    #convert the target into a usable ID
+    target_id = discord.get_targeted_id(ctx)
+    target_member = discord.default_server.get_member(target_id)
+
+    #ban reason has to have at least a word in it
+    if len(reason) < 4:
+        await discord.bot.say("⚠️ {0.message.author.mention} ban reason must be longer than 4 characters. `!ban @username 1d reason goes here`".format(ctx))
+        return
+
+    #if the user cannot be banned
+    if allow_regulation(ctx, target_id) is False:
+        await discord.bot.say("🛑 {0.message.author.mention} unable to moderate user. (no permissions)".format(ctx))
+        return
+
+    #verify the ban duration, and get the durations in seconds
+    duration_length = scheduler.user_duration_to_seconds(duration)
+    if duration_length is False:
+        await discord.bot.say("⚠️{0.message.author.mention} unable to decode message length. Should be `!ban @username 60s|1m|7d could not stop using gamer words`".format(ctx))
+        return
+    elif duration_length is None:
+        await discord.bot.say("⚠️{0.message.author.mention} unable to decode message length. allowed: seconds (s), minutes (m), hours (h), days (d), weeks (w), years (y)".format(ctx))
+        return
+
+    duration_inrange = scheduler.verify_reminder_duration_length(duration_length)
+    if duration_inrange is False:
+        await discord.bot.say("⚠️{0.message.author.mention} Ban duration is out of range. Have some mercy! Current range {1}m to {2}d".format(ctx, config.cfg['scheduler']['time_range_min_mins'], int(config.cfg['scheduler']['time_range_max_mins'] / 1440)))
+        return
+
+    #if we have a Member object, it is not retroactive and can be run live against discord
+    if target_member is not None:
+        #get the time to unban, make a db entry for unban
+        now = int(time.time())
+        time_to_fire = now + duration_length
+        when_nice = time.strftime("%A, %B %d %Y %H:%M %Z", time.localtime(time_to_fire))
+        database.cursor.execute('INSERT INTO scheduled_tasks'
+                            '(id_invoker, id_targeted, channel_targeted, time_invoked, time_scheduled, event_type, event_message)'
+                            'VALUES (%s,%s,%s,%s,%s,%s,%s)',
+                            (ctx.message.author.id, target_member.id, ctx.message.channel.id, now, time_to_fire, "UNBAN_MEMBER",reason))
+        database.connection.commit()
+
+        await discord.bot.say("✔️ {0.message.author.mention} is **BANNING** {1} with the reason of `{2}`. (Duration: {3}, Unban at:`{4}`)".format(ctx, target_member.mention, reason, duration, when_nice))
+        await asyncio.sleep(5)
+
+        #ship the ban off to discord
+        res = await common.ban_verbose(target_member, "{0.message.author.name} - '{1}'".format(ctx, reason))
+        if res is False:
+            await discord.bot.say("❓ Something's fucked! Unable to issue ban to Discord API. Bother <@{}>".format(config.cfg['bernard']['owner']))
+        else:
+            journal.update_journal_regulator(invoker=ctx.message.author.id, target=target_id, eventdata=reason, action="BAN_MEMBER", messageid=ctx.message.id)
+        #if a raw mention exists but not the Member object, handle it as retroactive
+    elif target_id is not None and target_member is None:
+        await discord.bot.say("⚠️ {0.message.author.mention} You cannot issue retroactive timed bans. Please use normal !ban.".format(ctx))
+    else:
+        await discord.bot.say("🛑 {0.message.author.mention} unable to moderate user. Target did not resolve to a valid Discord Member.".format(ctx))
 
 #anti-raid/easy cleanup code, used to mass ban my ingress point
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
