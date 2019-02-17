@@ -228,7 +228,7 @@ async def inviteban(ctx, target, *, reason):
 
     # ban reason has to be a reasonable length
     if len(reason) > 200:
-        await discord.bot.say("⚠️ Warning reason must be longer than 4 characters. `!inviteban inviteCode reason goes here`")
+        await discord.bot.say("⚠️ Invite ban reason must be longer than 4 characters. `!inviteban inviteCode reason goes here`")
         return
 
     # ban reason has to be a reasonable length
