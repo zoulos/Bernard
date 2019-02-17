@@ -108,7 +108,7 @@ async def warn(ctx, target, *, reason):
 
     # convert the target into a usable ID
     target_id = discord.get_targeted_id(ctx)
-    target_member = discord.default_server.get_member(target_id)
+    target_member = await discord.get_user_info(target_id)
     if target_member is None:
         await discord.bot.say("{} ⚠️ I was not able to lookup that user ID.".format(ctx.message.author.mention))
         return
