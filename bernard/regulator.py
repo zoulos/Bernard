@@ -118,6 +118,11 @@ async def warn(ctx, target, *, reason):
         await discord.bot.say("⚠️ Warning reason must be longer than 4 characters. `!warn @username reason goes here`")
         return
 
+    # warn reason has to be a reasonable length
+    if len(reason) > 200:
+        await discord.bot.say("⚠️ Reason too long - please limit to 200 characters or less.")
+        return
+
     if allow_regulation(ctx, target_id):
         # return what is happening in the same channel to alert the user
         await discord.bot.say("✔️ {} is warning {} with the reason of `{}`.".format(ctx.message.author.mention, target_member.mention, reason))
@@ -152,6 +157,11 @@ async def kick(ctx, target, *, reason):
         await discord.bot.say("⚠️ Kick reason must be longer than 4 characters. `!kick @username reason goes here`")
         return
 
+    # kick reason has to be a reasonable length
+    if len(reason) > 200:
+        await discord.bot.say("⚠️ Reason too long - please limit to 200 characters or less.")
+        return
+
     if allow_regulation(ctx, target_id):
         #return what is happening in the same channel to alert the user, wait 5 seconds and fire the kick command
         await discord.bot.say("✔️ {} is kicking {} with the reason of `{}`.".format(ctx.message.author.mention, target_member.mention, reason))
@@ -177,6 +187,11 @@ async def ban(ctx, target, *, reason):
     #ban reason has to have at least a word in it
     if len(reason) < 4:
         await discord.bot.say("⚠️ ban reason must be longer than 4 characters. `!ban @username reason goes here`")
+        return
+
+    # ban reason has to be a reasonable length
+    if len(reason) > 200:
+        await discord.bot.say("⚠️ Reason too long - please limit to 200 characters or less.")
         return
 
     #if the user cannot be banned
@@ -209,6 +224,16 @@ async def ban(ctx, target, *, reason):
 @discord.bot.command(pass_context=True, no_pm=True, hidden=True)
 async def inviteban(ctx, target, *, reason):
     if common.isDiscordRegulator(ctx.message.author) != True:
+        return
+
+    # ban reason has to be a reasonable length
+    if len(reason) > 200:
+        await discord.bot.say("⚠️ Warning reason must be longer than 4 characters. `!inviteban inviteCode reason goes here`")
+        return
+
+    # ban reason has to be a reasonable length
+    if len(reason) > 200:
+        await discord.bot.say("⚠️ Reason too long - please limit to 200 characters or less.")
         return
 
     #get anyone who joined via the invite
@@ -326,9 +351,14 @@ async def silence(ctx, target, *, reason):
     target_id = discord.get_targeted_id(ctx)
     target_member = discord.default_server.get_member(target_id)
 
-    #ban reason has to have at least a word in it
+    # silence reason has to have at least a word in it
     if len(reason) < 4:
         await discord.bot.say("⚠️ Silence reason must be longer than 4 characters. `!silence @username reason goes here`")
+        return
+
+    # silence reason has to have at least a word in it
+    if len(reason) > 200:
+        await discord.bot.say("⚠️ Reason too long - please limit to 200 characters or less.")
         return
 
     if allow_regulation(ctx, target_id) is False:
