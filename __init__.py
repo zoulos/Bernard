@@ -1,23 +1,27 @@
 import logging
 import bernard.config
 
-logging.basicConfig(level=logging.INFO, format=bernard.config.cfg['bernard']['logging']['format'], datefmt=bernard.config.cfg['bernard']['logging']['dateformat'])
+logging.basicConfig(
+    level=logging.INFO,
+    format=bernard.config.cfg["bernard"]["logging"]["format"],
+    datefmt=bernard.config.cfg["bernard"]["logging"]["dateformat"],
+)
 logger = logging.getLogger(__name__)
 logger.info("Attempting to start. I can't promise you I will work but I can sure try.")
 
-#always import common, discord in that order or things will break
+# always import common, discord in that order or things will break
 import bernard.common
 import bernard.discord
 import bernard.database
 import bernard.analytics
 import bernard.journal
 
-#chat modules
+# chat modules
 import bernard.hello
 import bernard.administrate
 import bernard.crypto
 
-#moderation modules
+# moderation modules
 import bernard.message
 import bernard.auditing
 import bernard.purger
@@ -29,12 +33,12 @@ import bernard.housekeeping
 import bernard.antispam
 import bernard.regulator
 
-#entitlement modules
+# entitlement modules
 import bernard.subscriber
 
-#background jobs
+# background jobs
 import bernard.scheduler
 import bernard.remind
 
 logger.warn("STARTING DISCORD BOT...")
-bernard.discord.bot.run(bernard.config.cfg['discord']['token'])
+bernard.discord.bot.run(bernard.config.cfg["discord"]["token"])

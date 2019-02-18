@@ -11,50 +11,95 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 logger.info("loading...")
 
-#background job to update coins automatically as set in config.cfg
+# background job to update coins automatically as set in config.cfg
 async def sync_background():
     await discord.bot.wait_until_ready()
     while not discord.bot.is_closed:
         job_start = analytics.getEventTime()
-        logger.info("Starting background task sync_background() - Interval {0}".format(config.cfg['chat']['crypto']['background_update_interval']))
+        logger.info(
+            "Starting background task sync_background() - Interval {0}".format(
+                config.cfg["chat"]["crypto"]["background_update_interval"]
+            )
+        )
         update = UpdateCoins()
         await update.update()
         result = await update.count()
         if update.oldtickers != update.newtickers:
-            await discord.bot.send_message(discord.objectFactory(config.cfg['chat']['crypto']['channel']), result)
+            await discord.bot.send_message(
+                discord.objectFactory(config.cfg["chat"]["crypto"]["channel"]), result
+            )
 
-        journal.update_journal_job(module=__name__, job="sync_background", start=job_start, result="{0} change".format(update.oldtickers - update.newtickers))
-        logger.info("Sleeping background task sync_background() - Interval {0}".format(config.cfg['chat']['crypto']['background_update_interval']))
-        await asyncio.sleep(config.cfg['chat']['crypto']['background_update_interval'])
+        journal.update_journal_job(
+            module=__name__,
+            job="sync_background",
+            start=job_start,
+            result="{0} change".format(update.oldtickers - update.newtickers),
+        )
+        logger.info(
+            "Sleeping background task sync_background() - Interval {0}".format(
+                config.cfg["chat"]["crypto"]["background_update_interval"]
+            )
+        )
+        await asyncio.sleep(config.cfg["chat"]["crypto"]["background_update_interval"])
 
-if config.cfg['chat']['crypto']['background_update_enable']:
+
+if config.cfg["chat"]["crypto"]["background_update_enable"]:
     discord.bot.loop.create_task(sync_background())
 
-@discord.bot.group(pass_context=True, no_pm=True, hidden=True, aliases=['cadm'])
+
+@discord.bot.group(pass_context=True, no_pm=True, hidden=True, aliases=["cadm"])
 async def cryptoadmin(ctx):
     if common.isDiscordAdministrator(ctx.message.author) is not True:
         return
+
 
 @cryptoadmin.command(pass_context=True, no_pm=True, hidden=True)
 async def alias(ctx, action: str, ticker=None, alias=None):
     if common.isDiscordAdministrator(ctx.message.author):
         if action == "add":
-            database.cursor.execute('INSERT IGNORE INTO crypto_lazy(ticker, alias, added, issued) VALUES(%s,%s,%s,%s)', (ticker.lower(), alias.lower(), analytics.getEventTime(), ctx.message.author.name))
+            database.cursor.execute(
+                "INSERT IGNORE INTO crypto_lazy(ticker, alias, added, issued) VALUES(%s,%s,%s,%s)",
+                (
+                    ticker.lower(),
+                    alias.lower(),
+                    analytics.getEventTime(),
+                    ctx.message.author.name,
+                ),
+            )
             database.connection.commit()
-            await discord.bot.say("**Alias Added:** `{0}` will use ticker `{1}` in lookup attempts".format(alias, ticker))
+            await discord.bot.say(
+                "**Alias Added:** `{0}` will use ticker `{1}` in lookup attempts".format(
+                    alias, ticker
+                )
+            )
         elif action == "remove":
-            database.cursor.execute('DELETE FROM crypto_lazy WHERE alias=%s AND ticker=%s', (alias.lower(), ticker.lower()))
+            database.cursor.execute(
+                "DELETE FROM crypto_lazy WHERE alias=%s AND ticker=%s",
+                (alias.lower(), ticker.lower()),
+            )
             database.connection.commit()
-            await discord.bot.say("**Aliases removed:** `{0}` no longer uses ticker `{1}` ".format(alias.lower(), ticker.lower()))
+            await discord.bot.say(
+                "**Aliases removed:** `{0}` no longer uses ticker `{1}` ".format(
+                    alias.lower(), ticker.lower()
+                )
+            )
         elif action == "info":
-            database.cursor.execute('''SELECT * FROM crypto_lazy WHERE ticker=%s OR alias=%s''', (ticker, alias))
+            database.cursor.execute(
+                """SELECT * FROM crypto_lazy WHERE ticker=%s OR alias=%s""",
+                (ticker, alias),
+            )
             table = database.cursor.fetchall()
             ret = "Ticker/Alias Pairs: **{0}**\n\n".format(ticker.upper())
             for result in table:
-                ret += "**{0}** using ticker `{1}` added by `{2}`\n".format(result[1], result[0], result[3])
+                ret += "**{0}** using ticker `{1}` added by `{2}`\n".format(
+                    result[1], result[0], result[3]
+                )
             await discord.bot.say(ret)
         else:
-            await discord.bot.say("!cryptoadmin alias <add|remove|info> <ticker> <alias>")
+            await discord.bot.say(
+                "!cryptoadmin alias <add|remove|info> <ticker> <alias>"
+            )
+
 
 @cryptoadmin.command(pass_context=True, no_pm=True)
 async def sync(ctx):
@@ -69,18 +114,19 @@ async def sync(ctx):
 
     await discord.bot.say(result)
 
-@discord.bot.command(pass_context=True, aliases=['c'])
+
+@discord.bot.command(pass_context=True, aliases=["c"])
 async def crypto(ctx, coin: str, currency="usd", exchange=None):
     await discord.bot.send_typing(ctx.message.channel)
 
-    #init the Coin class with the ticker and currency
+    # init the Coin class with the ticker and currency
     c = TickerFetch(coin, currency, exchange)
 
-    #figure out what exchanges we can use
+    # figure out what exchanges we can use
     lookup = await c.findexchange()
 
     if lookup is None:
-        #attempt to do a btc lookup as a last resort
+        # attempt to do a btc lookup as a last resort
         del c
         c = TickerFetch(coin, "btc", exchange)
         lookup = await c.findexchange()
@@ -88,51 +134,72 @@ async def crypto(ctx, coin: str, currency="usd", exchange=None):
             await discord.bot.say("404: shitcoin lookup not found :(")
             return
 
-    #if the data we have is somehow useless
-    if lookup['exchange'] == None:
-        await discord.bot.say("**500: internal shitcoin error.** Attempted price on None. VALUES: {0}".format(lookup))
+    # if the data we have is somehow useless
+    if lookup["exchange"] == None:
+        await discord.bot.say(
+            "**500: internal shitcoin error.** Attempted price on None. VALUES: {0}".format(
+                lookup
+            )
+        )
         return
 
-    #get the price from the correct API
+    # get the price from the correct API
     price, exchange = await c.getprice(lookup)
 
-    #if an API is fucking up and returning None just leave
+    # if an API is fucking up and returning None just leave
     if price is None:
-        await discord.bot.say("**500: internal shitcoin error.** Library returned None.")
+        await discord.bot.say(
+            "**500: internal shitcoin error.** Library returned None."
+        )
         return
 
     if c.currency == "usd":
-        await discord.bot.say("**{0}**: {1} ({2})".format(lookup['ticker'].upper(),price,exchange.title()))
+        await discord.bot.say(
+            "**{0}**: {1} ({2})".format(
+                lookup["ticker"].upper(), price, exchange.title()
+            )
+        )
     else:
         usdrough = await c.force_fiat()
-        await discord.bot.say("**{0}**: {1} ({2}) {3}".format(lookup['ticker'].upper(),price,exchange.title(),usdrough))
+        await discord.bot.say(
+            "**{0}**: {1} ({2}) {3}".format(
+                lookup["ticker"].upper(), price, exchange.title(), usdrough
+            )
+        )
 
-@discord.bot.command(pass_context=True, aliases=['mc'])
+
+@discord.bot.command(pass_context=True, aliases=["mc"])
 async def multicrypto(ctx, coin: str, currency="usd"):
     await discord.bot.send_typing(ctx.message.channel)
 
-    #get the lookups of all coins that can use the trade pair
+    # get the lookups of all coins that can use the trade pair
     c = TickerFetch(coin, currency)
     lookup = await c.multiexchange()
 
-    #if the first lookup falls flat on its face try btc like !c
+    # if the first lookup falls flat on its face try btc like !c
     if len(lookup) <= 1:
         del c
         c = TickerFetch(coin, "btc")
         lookup = await c.multiexchange()
-        logger.info("multicoin function falling back to BTC: Values {0}".format(len(lookup)))
+        logger.info(
+            "multicoin function falling back to BTC: Values {0}".format(len(lookup))
+        )
 
-    #nowhere to go but out
+    # nowhere to go but out
     if len(lookup) == 0:
-        await discord.bot.say("**500: Internal Shitcoin Error.** Attempted price on None.")
+        await discord.bot.say(
+            "**500: Internal Shitcoin Error.** Attempted price on None."
+        )
         return
     elif len(lookup) == 1:
-        await discord.bot.say("**500: Internal Shitcoin Error.** Only 1 coin available for lookup pair. Try !c instead.")
+        await discord.bot.say(
+            "**500: Internal Shitcoin Error.** Only 1 coin available for lookup pair. Try !c instead."
+        )
         return
     else:
         pass
 
-    #build the string for chat and send it off
+    # build the string for chat and send it off
     formatted = ""
     for exchange in lookup:
         pri, exch = await c.getprice(exchange)
@@ -144,7 +211,8 @@ async def multicrypto(ctx, coin: str, currency="usd"):
                 formatted += "**{0}**: {1} {2}\n\n".format(exch, pri, usdrough)
     await discord.bot.say(formatted)
 
-@discord.bot.command(pass_context=True, aliases=['cmc'])
+
+@discord.bot.command(pass_context=True, aliases=["cmc"])
 async def coinmarketcap(ctx, coin: str):
     await discord.bot.send_typing(ctx.message.channel)
 
@@ -155,31 +223,71 @@ async def coinmarketcap(ctx, coin: str):
         await discord.bot.say("404: shitcoin lookup not found :(")
         return
 
-    ret = await common.getJSON('https://api.coinmarketcap.com/v1/ticker/'+cmc+'/')
+    ret = await common.getJSON("https://api.coinmarketcap.com/v1/ticker/" + cmc + "/")
     cmc = ret[0]
 
-    emd = discord.embeds.Embed(title='Coin Market Cap data for: {0} "{1}"'.format(coin.upper(), cmc['name']), url="https://coinmarketcap.com/currencies/"+cmc['id']+"/", colour=0xE79015)
-    emd.set_thumbnail(url='https://files.coinmarketcap.com/static/img/coins/128x128/'+cmc['id']+'.png')
-    emd.add_field(name="Rank", value=cmc['rank'], inline=True)
-    emd.add_field(name="Market Cap", value="${:0,.2f}".format(float(cmc['market_cap_usd'])), inline=True)
-    emd.add_field(name="Price (USD)", value="${:,.2f}".format(float(cmc['price_usd'])), inline=True)
-    emd.add_field(name="Price (BTC)", value="{:.8f}".format(float(cmc['price_btc'])), inline=True)
-    emd.add_field(name="Available Supply", value="{:,}".format(float(cmc['available_supply'])), inline=True)
+    emd = discord.embeds.Embed(
+        title='Coin Market Cap data for: {0} "{1}"'.format(coin.upper(), cmc["name"]),
+        url="https://coinmarketcap.com/currencies/" + cmc["id"] + "/",
+        colour=0xE79015,
+    )
+    emd.set_thumbnail(
+        url="https://files.coinmarketcap.com/static/img/coins/128x128/"
+        + cmc["id"]
+        + ".png"
+    )
+    emd.add_field(name="Rank", value=cmc["rank"], inline=True)
+    emd.add_field(
+        name="Market Cap",
+        value="${:0,.2f}".format(float(cmc["market_cap_usd"])),
+        inline=True,
+    )
+    emd.add_field(
+        name="Price (USD)",
+        value="${:,.2f}".format(float(cmc["price_usd"])),
+        inline=True,
+    )
+    emd.add_field(
+        name="Price (BTC)", value="{:.8f}".format(float(cmc["price_btc"])), inline=True
+    )
+    emd.add_field(
+        name="Available Supply",
+        value="{:,}".format(float(cmc["available_supply"])),
+        inline=True,
+    )
     try:
-        emd.add_field(name="Max Supply", value="{:,}".format(float(cmc['max_supply'])), inline=True)
+        emd.add_field(
+            name="Max Supply",
+            value="{:,}".format(float(cmc["max_supply"])),
+            inline=True,
+        )
     except TypeError:
         emd.add_field(name="Max Supply", value="∞", inline=True)
-    emd.add_field(name="Market Change (1H / 24H / 7D)", value="{}% / {}% / {}%".format(cmc['percent_change_1h'], cmc['percent_change_24h'], cmc['percent_change_7d']), inline=False)
-    emd.set_footer(text="Last Updated: {} EST".format(datetime.fromtimestamp(int(cmc['last_updated'])).isoformat()))
+    emd.add_field(
+        name="Market Change (1H / 24H / 7D)",
+        value="{}% / {}% / {}%".format(
+            cmc["percent_change_1h"],
+            cmc["percent_change_24h"],
+            cmc["percent_change_7d"],
+        ),
+        inline=False,
+    )
+    emd.set_footer(
+        text="Last Updated: {} EST".format(
+            datetime.fromtimestamp(int(cmc["last_updated"])).isoformat()
+        )
+    )
 
     await discord.bot.say(embed=emd)
 
-@discord.bot.command(pass_context=True, aliases=['csellout'])
+
+@discord.bot.command(pass_context=True, aliases=["csellout"])
 async def cakesellout(ctx):
     await discord.bot.say("✡ 🇮🇱 https://www.binance.com/?ref=12222765 🇮🇱 ✡")
 
+
 class Coin:
-    def __init__(self, ticker, currency='usd', exchange=None):
+    def __init__(self, ticker, currency="usd", exchange=None):
         self.ticker = ticker.lower()
         self.exchange = exchange
         self.currency = currency.lower()
@@ -188,79 +296,102 @@ class Coin:
 
     async def multiexchange(self):
         self.lazylookup()
-        database.cursor.execute('SELECT * FROM crypto WHERE ticker=%s AND currency=%s ORDER BY priority ASC', (self.ticker, self.currency))
+        database.cursor.execute(
+            "SELECT * FROM crypto WHERE ticker=%s AND currency=%s ORDER BY priority ASC",
+            (self.ticker, self.currency),
+        )
         return database.cursor.fetchall()
 
     async def findexchange(self):
         self.lazylookup()
         if self.exchange == None:
-            database.cursor.execute('SELECT * FROM crypto WHERE ticker=%s AND currency=%s ORDER BY priority ASC', (self.ticker, self.currency))
+            database.cursor.execute(
+                "SELECT * FROM crypto WHERE ticker=%s AND currency=%s ORDER BY priority ASC",
+                (self.ticker, self.currency),
+            )
             return database.cursor.fetchone()
         else:
-            database.cursor.execute('SELECT * FROM crypto WHERE exchange=%s AND ticker=%s AND currency=%s ORDER BY priority ASC', (self.exchange, self.ticker, self.currency))
+            database.cursor.execute(
+                "SELECT * FROM crypto WHERE exchange=%s AND ticker=%s AND currency=%s ORDER BY priority ASC",
+                (self.exchange, self.ticker, self.currency),
+            )
             return database.cursor.fetchone()
 
     def cmc_lookup(self):
         self.lazylookup()
-        database.cursor.execute('SELECT * FROM crypto_cmc WHERE ticker=%s', (self.ticker.upper(),))
+        database.cursor.execute(
+            "SELECT * FROM crypto_cmc WHERE ticker=%s", (self.ticker.upper(),)
+        )
         retdb = database.cursor.fetchone()
         if retdb is None:
             return None
         else:
-            return retdb['id'] #return ID
+            return retdb["id"]  # return ID
 
     async def force_fiat(self):
         if self.fiat_cache == None:
             if self.currency == "btc":
-                ret = await common.getJSON('https://api.pro.coinbase.com/products/btc-usd/ticker')
+                ret = await common.getJSON(
+                    "https://api.pro.coinbase.com/products/btc-usd/ticker"
+                )
             elif self.currency == "eth":
-                ret = await common.getJSON('https://api.pro.coinbase.com/products/eth-usd/ticker')
+                ret = await common.getJSON(
+                    "https://api.pro.coinbase.com/products/eth-usd/ticker"
+                )
             else:
-                logger.warn("cannot force fiat price on currency when it's {0}".format(self.currency))
+                logger.warn(
+                    "cannot force fiat price on currency when it's {0}".format(
+                        self.currency
+                    )
+                )
                 return None
 
-            self.fiat_cache = float(ret['price'])
+            self.fiat_cache = float(ret["price"])
 
         if self.valued is None:
             return "N/A"
         else:
-            form = (self.fiat_cache*float(self.valued))
+            form = self.fiat_cache * float(self.valued)
             return "~${:,.2f} USD".format(float(form))
 
     async def getprice(self, lookup):
-        if lookup['exchange'] == "gdax":
+        if lookup["exchange"] == "gdax":
             price = await self.gdax()
-        elif lookup['exchange'] == "gemini":
+        elif lookup["exchange"] == "gemini":
             price = await self.gemini()
-        elif lookup['exchange'] == "bitfinex":
+        elif lookup["exchange"] == "bitfinex":
             price = await self.bitfinex()
-        elif lookup['exchange'] == "bittrex":
+        elif lookup["exchange"] == "bittrex":
             price = await self.bittrex()
-        elif lookup['exchange'] == "bitstamp":
+        elif lookup["exchange"] == "bitstamp":
             price = await self.bitstamp()
-        elif lookup['exchange'] == "binance":
+        elif lookup["exchange"] == "binance":
             price = await self.binance()
-        elif lookup['exchange'] == "poloniex":
+        elif lookup["exchange"] == "poloniex":
             price = await self.poloniex()
-        elif lookup['exchange'] == "kraken":
+        elif lookup["exchange"] == "kraken":
             price = await self.kraken()
-        elif lookup['exchange'] == "kucoin":
+        elif lookup["exchange"] == "kucoin":
             price = await self.kucoin()
-        elif lookup['exchange'] ==  "coinmarketcap":
+        elif lookup["exchange"] == "coinmarketcap":
             price = await self.coinmarketcap()
-        exchange = lookup['exchange']
+        exchange = lookup["exchange"]
         return price, exchange
 
     def lazylookup(self):
-        database.cursor.execute('SELECT * FROM crypto_lazy WHERE alias=%s', (self.ticker,))
+        database.cursor.execute(
+            "SELECT * FROM crypto_lazy WHERE alias=%s", (self.ticker,)
+        )
         lazy = database.cursor.fetchone()
         if lazy is not None:
-            self.ticker = lazy['ticker']
+            self.ticker = lazy["ticker"]
         else:
-            database.cursor.execute('SELECT * FROM crypto_cmc WHERE id=%s', (self.ticker,))
+            database.cursor.execute(
+                "SELECT * FROM crypto_cmc WHERE id=%s", (self.ticker,)
+            )
             lazy_fallback = database.cursor.fetchone()
             if lazy_fallback is not None:
-                self.ticker = lazy_fallback['ticker'].lower()
+                self.ticker = lazy_fallback["ticker"].lower()
 
     def format(self, raw):
         if raw is None:
@@ -277,36 +408,51 @@ class Coin:
         else:
             return "ERR: UNKNOWN CURRRENCY in Coin.format(self, raw)"
 
+
 class TickerFetch(Coin):
     async def gdax(self):
-        ret = await common.getJSON('https://api.pro.coinbase.com/products/'+self.ticker+'-'+self.currency+'/ticker')
+        ret = await common.getJSON(
+            "https://api.pro.coinbase.com/products/"
+            + self.ticker
+            + "-"
+            + self.currency
+            + "/ticker"
+        )
         if ret is not None:
-            self.valued = ret['price']
-            return self.format(ret['price'])
+            self.valued = ret["price"]
+            return self.format(ret["price"])
         else:
             return "API Lookup Failed"
 
     async def bitfinex(self):
-        ret = await common.getJSON('https://api.bitfinex.com/v1/pubticker/'+self.ticker+self.currency)
+        ret = await common.getJSON(
+            "https://api.bitfinex.com/v1/pubticker/" + self.ticker + self.currency
+        )
         if ret is not None:
-            self.valued = ret['last_price']
-            return self.format(ret['last_price'])
+            self.valued = ret["last_price"]
+            return self.format(ret["last_price"])
         else:
             return "API Lookup Failed"
 
     async def gemini(self):
-        ret = await common.getJSON('https://api.gemini.com/v1/pubticker/'+self.ticker+self.currency)
+        ret = await common.getJSON(
+            "https://api.gemini.com/v1/pubticker/" + self.ticker + self.currency
+        )
         if ret is not None:
-            self.valued = ret['last']
-            return self.format(ret['last'])
+            self.valued = ret["last"]
+            return self.format(ret["last"])
         else:
             return "API Lookup Failed"
 
     async def poloniex(self):
-        ret = await common.getJSON('https://poloniex.com/public?command=returnTicker')
+        ret = await common.getJSON("https://poloniex.com/public?command=returnTicker")
         if ret is not None:
             try:
-                poloniex_api_sucks = ret[self.currency.upper().replace("USD","USDT")+"_"+self.ticker.upper()]['last']
+                poloniex_api_sucks = ret[
+                    self.currency.upper().replace("USD", "USDT")
+                    + "_"
+                    + self.ticker.upper()
+                ]["last"]
                 self.valued = poloniex_api_sucks
                 return self.format(poloniex_api_sucks)
             except KeyError:
@@ -315,64 +461,91 @@ class TickerFetch(Coin):
             return None
 
     async def bitstamp(self):
-        ret = await common.getJSON('https://www.bitstamp.net/api/v2/ticker/'+self.ticker+''+self.currency+'/')
+        ret = await common.getJSON(
+            "https://www.bitstamp.net/api/v2/ticker/"
+            + self.ticker
+            + ""
+            + self.currency
+            + "/"
+        )
         if ret is not None:
             try:
-                self.valued = ret['last']
-                return self.format(ret['last'])
+                self.valued = ret["last"]
+                return self.format(ret["last"])
             except:
                 return None
         else:
             return None
 
     async def bittrex(self):
-        ret = await common.getJSON('https://bittrex.com/api/v1.1/public/getticker?market='+self.currency.replace("usd","usdt")+'-'+self.ticker)
+        ret = await common.getJSON(
+            "https://bittrex.com/api/v1.1/public/getticker?market="
+            + self.currency.replace("usd", "usdt")
+            + "-"
+            + self.ticker
+        )
         if ret is not None:
             try:
-                self.valued = ret['result']['Last']
-                return self.format(ret['result']['Last'])
+                self.valued = ret["result"]["Last"]
+                return self.format(ret["result"]["Last"])
             except:
                 return None
         else:
             return None
 
     async def binance(self):
-        ret = await common.getJSON('https://api.binance.com/api/v1/ticker/24hr?symbol='+self.ticker.upper()+self.currency.replace("usd","usdt").upper())
+        ret = await common.getJSON(
+            "https://api.binance.com/api/v1/ticker/24hr?symbol="
+            + self.ticker.upper()
+            + self.currency.replace("usd", "usdt").upper()
+        )
         if ret is not None:
-            self.valued = ret['bidPrice']
-            return self.format(ret['bidPrice'])
+            self.valued = ret["bidPrice"]
+            return self.format(ret["bidPrice"])
         else:
             return None
 
     async def kraken(self):
-        ret = await common.getJSON('https://api.kraken.com/0/public/Ticker?pair='+self.ticker.replace("btc","xbt")+self.currency.replace("btc","xbt"))
+        ret = await common.getJSON(
+            "https://api.kraken.com/0/public/Ticker?pair="
+            + self.ticker.replace("btc", "xbt")
+            + self.currency.replace("btc", "xbt")
+        )
         if ret is not None:
             try:
-                for ticker, data in ret['result'].items():
-                    self.valued = data['c'][0]
-                    return self.format(data['c'][0])
+                for ticker, data in ret["result"].items():
+                    self.valued = data["c"][0]
+                    return self.format(data["c"][0])
             except KeyError:
                 return None
         else:
             return None
 
     async def kucoin(self):
-        ret = await common.getJSON('https://api.kucoin.com/v1/open/tick?symbol='+self.ticker+'-'+self.currency.replace("usd","usdt"))
+        ret = await common.getJSON(
+            "https://api.kucoin.com/v1/open/tick?symbol="
+            + self.ticker
+            + "-"
+            + self.currency.replace("usd", "usdt")
+        )
         if ret is not None:
-            self.valued = ret['data']['lastDealPrice']
-            return self.format(ret['data']['lastDealPrice'])
+            self.valued = ret["data"]["lastDealPrice"]
+            return self.format(ret["data"]["lastDealPrice"])
         else:
             return None
 
     async def coinmarketcap(self):
         cmc = self.cmc_lookup()
-        ret = await common.getJSON('https://api.coinmarketcap.com/v1/ticker/'+cmc+'/')
+        ret = await common.getJSON(
+            "https://api.coinmarketcap.com/v1/ticker/" + cmc + "/"
+        )
 
         if ret is not None:
-            self.valued = ret[0]['price_btc']
-            return self.format(ret[0]['price_btc'])
+            self.valued = ret[0]["price_btc"]
+            return self.format(ret[0]["price_btc"])
         else:
             return None
+
 
 class UpdateCoins:
     def __init__(self):
@@ -394,31 +567,46 @@ class UpdateCoins:
         await self.coinmarketcap()
 
     async def flush(self):
-        #get how many objects were in DB
-        database.cursor.execute('SELECT count(*) FROM crypto')
+        # get how many objects were in DB
+        database.cursor.execute("SELECT count(*) FROM crypto")
         old = database.cursor.fetchone()
-        self.oldtickers = old['count(*)']
+        self.oldtickers = old["count(*)"]
 
-        database.cursor.execute('DELETE FROM crypto;')
-        database.cursor.execute('DELETE FROM crypto_cmc;')
+        database.cursor.execute("DELETE FROM crypto;")
+        database.cursor.execute("DELETE FROM crypto_cmc;")
         database.connection.commit()
 
     async def count(self):
-        database.cursor.execute('SELECT count(*) FROM crypto')
+        database.cursor.execute("SELECT count(*) FROM crypto")
         new = database.cursor.fetchone()
-        self.newtickers = new['count(*)']
+        self.newtickers = new["count(*)"]
 
         change = self.newtickers - self.oldtickers
 
-        return "<:pepoWant:352533805438992395> Database updated! Change: {0:,d}. ({1:,d} lookup attempts available)".format(change, self.newtickers)
+        return "<:pepoWant:352533805438992395> Database updated! Change: {0:,d}. ({1:,d} lookup attempts available)".format(
+            change, self.newtickers
+        )
 
     async def gdax(self):
         logger.info("UPDATING GDAX TICKERS...")
-        ret = await common.getJSON('https://api.pro.coinbase.com/products')
+        ret = await common.getJSON("https://api.pro.coinbase.com/products")
         if ret is not None:
             for ticker in ret:
-                unique = "gdax" + ticker['base_currency'].lower() + ticker['quote_currency'].lower()
-                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (1, "gdax", ticker['base_currency'].lower(), ticker['quote_currency'].lower(), unique)) # ticker['symbol'][-3:] currency | ticker['symbol'][:3] ticker
+                unique = (
+                    "gdax"
+                    + ticker["base_currency"].lower()
+                    + ticker["quote_currency"].lower()
+                )
+                database.cursor.execute(
+                    "INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)",
+                    (
+                        1,
+                        "gdax",
+                        ticker["base_currency"].lower(),
+                        ticker["quote_currency"].lower(),
+                        unique,
+                    ),
+                )  # ticker['symbol'][-3:] currency | ticker['symbol'][:3] ticker
             database.connection.commit()
             return True
         else:
@@ -426,11 +614,14 @@ class UpdateCoins:
 
     async def gemini(self):
         logger.info("UPDATING GEMINI TICKERS...")
-        ret = await common.getJSON('https://api.gemini.com/v1/symbols')
+        ret = await common.getJSON("https://api.gemini.com/v1/symbols")
         if ret is not None:
             for ticker in ret:
-                unique =  "gemini" + ticker[:3].lower() + ticker[-3:].lower()
-                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (2, "gemini", ticker[:3].lower(), ticker[-3:].lower(), unique)) # ticker[-3:] currency | ticker[:3] ticker
+                unique = "gemini" + ticker[:3].lower() + ticker[-3:].lower()
+                database.cursor.execute(
+                    "INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)",
+                    (2, "gemini", ticker[:3].lower(), ticker[-3:].lower(), unique),
+                )  # ticker[-3:] currency | ticker[:3] ticker
             database.connection.commit()
             return True
         else:
@@ -438,11 +629,14 @@ class UpdateCoins:
 
     async def bitfinex(self):
         logger.info("UPDATING BITFINEX TICKERS...")
-        ret = await common.getJSON('https://api.bitfinex.com/v1/symbols')
+        ret = await common.getJSON("https://api.bitfinex.com/v1/symbols")
         if ret is not None:
             for ticker in ret:
                 unique = "bitfinex" + ticker[:3] + ticker[-3:]
-                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (5, "bitfinex", ticker[:3], ticker[-3:], unique)) #ticker[-3:] curr | ticker[:3] ticker
+                database.cursor.execute(
+                    "INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)",
+                    (5, "bitfinex", ticker[:3], ticker[-3:], unique),
+                )  # ticker[-3:] curr | ticker[:3] ticker
             database.connection.commit()
             return True
         else:
@@ -450,11 +644,24 @@ class UpdateCoins:
 
     async def bittrex(self):
         logger.info("UPDATING BITTREX TICKERS...")
-        ret = await common.getJSON('https://bittrex.com/api/v1.1/public/getmarkets')
+        ret = await common.getJSON("https://bittrex.com/api/v1.1/public/getmarkets")
         if ret is not None:
-            for ticker in ret['result']:
-                unique = "bittrex" + ticker['MarketCurrency'].lower() + ticker['BaseCurrency'].lower().replace("usdt","usd")
-                database.cursor.execute('INSERT IGNORE INTO crypto(priority,exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (6, "bittrex", ticker['MarketCurrency'].lower(), ticker['BaseCurrency'].lower().replace("usdt","usd"), unique)) #ticker['MarketCurrency'] ticker | ticker['BaseCurrency'] currency            database.connection.commit()
+            for ticker in ret["result"]:
+                unique = (
+                    "bittrex"
+                    + ticker["MarketCurrency"].lower()
+                    + ticker["BaseCurrency"].lower().replace("usdt", "usd")
+                )
+                database.cursor.execute(
+                    "INSERT IGNORE INTO crypto(priority,exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)",
+                    (
+                        6,
+                        "bittrex",
+                        ticker["MarketCurrency"].lower(),
+                        ticker["BaseCurrency"].lower().replace("usdt", "usd"),
+                        unique,
+                    ),
+                )  # ticker['MarketCurrency'] ticker | ticker['BaseCurrency'] currency            database.connection.commit()
             database.connection.commit()
             return True
         else:
@@ -462,12 +669,26 @@ class UpdateCoins:
 
     async def poloniex(self):
         logger.info("UPDATING POLOINEX TICKERS...")
-        database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (8, "poloniex", "btc", "usd", "poloniexbtcusd"))
-        ret = await common.getJSON('https://poloniex.com/public?command=returnCurrencies')
+        database.cursor.execute(
+            "INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)",
+            (8, "poloniex", "btc", "usd", "poloniexbtcusd"),
+        )
+        ret = await common.getJSON(
+            "https://poloniex.com/public?command=returnCurrencies"
+        )
         if ret is not None:
             for ticker in ret:
-                unique = "poloniex" + ticker.replace("USDT","usd").lower() + "btc"
-                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (8, "poloniex", ticker.replace("USDT","usd").lower(), "btc", unique)) # ticker ticker | ticker['symbol'][:3] ticker
+                unique = "poloniex" + ticker.replace("USDT", "usd").lower() + "btc"
+                database.cursor.execute(
+                    "INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)",
+                    (
+                        8,
+                        "poloniex",
+                        ticker.replace("USDT", "usd").lower(),
+                        "btc",
+                        unique,
+                    ),
+                )  # ticker ticker | ticker['symbol'][:3] ticker
             database.connection.commit()
             return True
         else:
@@ -475,12 +696,17 @@ class UpdateCoins:
 
     async def bitstamp(self):
         logger.info("UPDATING BITSTAMP TICKERS...")
-        ret = await common.getJSON('https://www.bitstamp.net/api/v2/trading-pairs-info/')
+        ret = await common.getJSON(
+            "https://www.bitstamp.net/api/v2/trading-pairs-info/"
+        )
         if ret is not None:
             for ticker in ret:
-                split = ticker['name'].split("/")
+                split = ticker["name"].split("/")
                 unique = "bitstamp" + split[0].lower() + split[1].lower()
-                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (7, "bitstamp", split[0].lower(), split[1].lower(), unique))
+                database.cursor.execute(
+                    "INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)",
+                    (7, "bitstamp", split[0].lower(), split[1].lower(), unique),
+                )
             database.connection.commit()
             return True
         else:
@@ -488,12 +714,15 @@ class UpdateCoins:
 
     async def binance(self):
         logger.info("UPDATING BINANCE TICKERS...")
-        ret = await common.getJSON('https://api.binance.com/api/v1/ticker/allPrices')
+        ret = await common.getJSON("https://api.binance.com/api/v1/ticker/allPrices")
         if ret is not None:
             for ticker in ret:
-                tick = ticker['symbol'].replace("USDT","usd").lower()
-                unique = "binance" + ticker['symbol'][:3].lower() + tick[-3:]
-                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (3, "binance", ticker['symbol'][:3].lower(), tick[-3:], unique)) # ticker['symbol'][-3:] currency | ticker['symbol'][:3] ticker
+                tick = ticker["symbol"].replace("USDT", "usd").lower()
+                unique = "binance" + ticker["symbol"][:3].lower() + tick[-3:]
+                database.cursor.execute(
+                    "INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)",
+                    (3, "binance", ticker["symbol"][:3].lower(), tick[-3:], unique),
+                )  # ticker['symbol'][-3:] currency | ticker['symbol'][:3] ticker
             database.connection.commit()
             return True
         else:
@@ -501,12 +730,15 @@ class UpdateCoins:
 
     async def kraken(self):
         logger.info("UPDATING KRAKEN TICKERS...")
-        ret = await common.getJSON('https://api.kraken.com/0/public/AssetPairs')
+        ret = await common.getJSON("https://api.kraken.com/0/public/AssetPairs")
         if ret is not None:
-            for ticker, data in ret['result'].items():
-                d = data['altname'].replace(".d","").replace("XBT","btc").lower()
+            for ticker, data in ret["result"].items():
+                d = data["altname"].replace(".d", "").replace("XBT", "btc").lower()
                 unique = "kraken" + d[:3] + d[-3:]
-                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (8, "kraken", d[:3], d[-3:], unique))
+                database.cursor.execute(
+                    "INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)",
+                    (8, "kraken", d[:3], d[-3:], unique),
+                )
             database.connection.commit()
             return True
         else:
@@ -514,11 +746,24 @@ class UpdateCoins:
 
     async def kucoin(self):
         logger.info("UPDATING KUCOIN TICKERS...")
-        ret = await common.getJSON('https://api.kucoin.com/v1/market/open/symbols')
+        ret = await common.getJSON("https://api.kucoin.com/v1/market/open/symbols")
         if ret is not None:
-            for ticker in ret['data']:
-                unique = "kucoin" + ticker['coinType'].lower() + ticker['coinTypePair'].lower().replace("usdt","usd")
-                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (4, "kucoin", ticker['coinType'].lower(), ticker['coinTypePair'].lower().replace("usdt","usd"), unique))
+            for ticker in ret["data"]:
+                unique = (
+                    "kucoin"
+                    + ticker["coinType"].lower()
+                    + ticker["coinTypePair"].lower().replace("usdt", "usd")
+                )
+                database.cursor.execute(
+                    "INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)",
+                    (
+                        4,
+                        "kucoin",
+                        ticker["coinType"].lower(),
+                        ticker["coinTypePair"].lower().replace("usdt", "usd"),
+                        unique,
+                    ),
+                )
             database.connection.commit()
             return True
         else:
@@ -526,15 +771,24 @@ class UpdateCoins:
 
     async def coinmarketcap(self):
         logger.info("UPDATING CMC TICKERS AND LOOKUP TABLE...")
-        ret = await common.getJSON('https://api.coinmarketcap.com/v1/ticker/?limit='+str(config.cfg['chat']['crypto']['cmc_limit']))
+        ret = await common.getJSON(
+            "https://api.coinmarketcap.com/v1/ticker/?limit="
+            + str(config.cfg["chat"]["crypto"]["cmc_limit"])
+        )
         if ret is not None:
             for ticker in ret:
-                #handle the normal !c / !mc lookups
-                unique = "coinmarketcap" + ticker['symbol'] + "btc"
-                database.cursor.execute('INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)', (999, "coinmarketcap", ticker['symbol'].lower(), "btc", unique))
+                # handle the normal !c / !mc lookups
+                unique = "coinmarketcap" + ticker["symbol"] + "btc"
+                database.cursor.execute(
+                    "INSERT IGNORE INTO crypto(priority, exchange, ticker, currency, uniq) VALUES(%s,%s,%s,%s,%s)",
+                    (999, "coinmarketcap", ticker["symbol"].lower(), "btc", unique),
+                )
 
-                #handle !cmc lookups with the crypto_cmc table
-                database.cursor.execute('INSERT IGNORE INTO crypto_cmc(ticker, id, name) VALUES(%s,%s,%s)', (ticker['symbol'], ticker['id'], ticker['name']))
+                # handle !cmc lookups with the crypto_cmc table
+                database.cursor.execute(
+                    "INSERT IGNORE INTO crypto_cmc(ticker, id, name) VALUES(%s,%s,%s)",
+                    (ticker["symbol"], ticker["id"], ticker["name"]),
+                )
             database.connection.commit()
             return True
         else:
