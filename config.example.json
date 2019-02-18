@@ -32,6 +32,12 @@
 		}
 	},
 
+	"scheduler":{
+		"enable":1,
+		"time_range_min_mins":1,
+		"time_range_max_mins":525600
+	},
+
 	"regulators":{
 		"unban_grace_mins":4320
 	},

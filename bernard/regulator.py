@@ -260,11 +260,14 @@ async def timedban(ctx, target, duration, *, reason):
         now = int(time.time())
         time_to_fire = now + duration_length
         when_nice = time.strftime("%A, %B %d %Y %H:%M %Z", time.localtime(time_to_fire))
-        database.cursor.execute('INSERT INTO scheduled_tasks'
-                            '(id_invoker, id_targeted, channel_targeted, time_invoked, time_scheduled, event_type, event_message)'
-                            'VALUES (%s,%s,%s,%s,%s,%s,%s)',
-                            (ctx.message.author.id, target_member.id, ctx.message.channel.id, now, time_to_fire, "UNBAN_MEMBER",reason))
-        database.connection.commit()
+
+        scheduler.set_future_task(
+            invoker=ctx.message.author.id,
+            target=target_member.id,
+            channel=ctx.message.channel.id,
+            timestamp=time_to_fire,
+            event="UNBAN_MEMBER",
+            msg=reason)
 
         await discord.bot.say("✔️ {0.message.author.mention} is **BANNING** {1} with the reason of `{2}`. (Duration: {3}, Unban at:`{4}`)".format(ctx, target_member.mention, reason, duration, when_nice))
         await asyncio.sleep(5)

@@ -5,10 +5,45 @@ import bernard.database as database
 import bernard.scheduler as scheduler
 import logging
 import time
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 logger.info("loading...")
 
+@discord.bot.command(pass_context=True, no_pm=True)
+async def todo(ctx):
+    database.cursor.execute("SELECT * FROM scheduled_tasks WHERE exec_run=0 AND event_type='POST_MESSAGE' AND id_targeted = %s ORDER BY time_scheduled ASC", (ctx.message.author.id,))
+    waiting_work_count = database.cursor.fetchall()
+
+    if len(waiting_work_count) == 0:
+        await discord.bot.say("⚠️{0.message.author.mention} Doesn't look like you have anything to be reminded of? Make one with `!remind 2d call destiny a betamale`".format(ctx))
+        return
+
+    emd = discord.embeds.Embed(title="__Pending Reminders (Times {})__".format(time.localtime().tm_zone),
+        colour=discord.discord.Color.green(),
+        timestamp=datetime.utcnow())
+
+    emd.set_author(name="{0}     (ID: {1})".format(ctx.message.author.name, ctx.message.author.id),
+        icon_url=ctx.message.author.avatar_url)
+    emd.set_thumbnail(url=ctx.message.author.avatar_url)
+
+    for waiting_work in waiting_work_count:
+        time_friendly = time.strftime("%m/%d/%Y %H:%M", time.localtime(waiting_work['time_scheduled']))
+        emd.add_field(name="{0} (ID:{1})".format(time_friendly, waiting_work['id']), value=waiting_work['event_message'], inline=False)
+
+    await discord.bot.say(embed=emd)
+
+@discord.bot.command(pass_context=True, no_pm=True)
+async def unremind(ctx, reminder_id):
+    database.cursor.execute("SELECT * FROM scheduled_tasks WHERE exec_run=0 AND event_type='POST_MESSAGE' AND id_targeted = %s AND id = %s", (ctx.message.author.id, reminder_id))
+    id_to_remove = database.cursor.fetchone()
+
+    if id_to_remove is None:
+        await discord.bot.say("⚠️{0.message.author.mention} I couldn't find that reminder ID. Are you sure it's yours?".format(ctx))
+        return
+    else:
+        await scheduler.scheduler_mark_work_done(id_to_remove)
+        await discord.bot.say("✔️{0.message.author.mention} Reminder removed! You will not be bothered about this task.".format(ctx))
 
 @discord.bot.command(pass_context=True, no_pm=True)
 async def remind(ctx, duration, *, text):
@@ -42,7 +77,8 @@ async def remind(ctx, duration, *, text):
         return
     elif "@here" in text.lower():
         return
-    text = text.replace("`","'")
+    else:
+        text = text.replace("`","'")
 
     #limit message to have 3 mentions
     if len(ctx.message.mentions) > 3:
@@ -52,12 +88,13 @@ async def remind(ctx, duration, *, text):
     now = int(time.time())
     time_to_fire = now + duration_length
 
-    #update the db
-    database.cursor.execute('INSERT INTO scheduled_tasks'
-                            '(id_invoker, id_targeted, channel_targeted, time_invoked, time_scheduled, event_type, event_message)'
-                            'VALUES (%s,%s,%s,%s,%s,%s,%s)',
-                            (ctx.message.author.id, ctx.message.author.id, ctx.message.channel.id, now, time_to_fire, "POST_MESSAGE",text))
-    database.connection.commit()
+    #set the reminder
+    scheduler.set_future_task(
+        invoker=ctx.message.author.id,
+        channel=ctx.message.channel.id,
+        timestamp=time_to_fire,
+        event="POST_MESSAGE",
+        msg=text)
 
     when = time.strftime("%A, %B %d %Y %H:%M %Z", time.localtime(time_to_fire))
     await discord.bot.say("✔️{0.message.author.mention} reminder set for `{1}`! I'll try not to forget about this, I promise.".format(ctx, when))

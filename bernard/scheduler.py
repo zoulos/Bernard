@@ -42,7 +42,22 @@ def verify_reminder_duration_length(value):
     elif value < config.cfg['scheduler']['time_range_min_mins'] * 60:
         return False
 
-def set_future_reminder(invoker, target, channeltarget, timetofire, eventtype, eventmsg):
+def set_future_task(**kwargs):
+    invoker = kwargs['invoker']
+    channeltarget = kwargs['channel']
+    timetofire = kwargs['timestamp']
+    eventtype = kwargs['event']
+
+    try:
+        target = kwargs['target']
+    except KeyError:
+        target = invoker
+
+    try:
+        eventmsg = kwargs['msg']
+    except KeyError:
+        eventmsg = None
+
     now = int(time.time())
 
     database.cursor.execute('INSERT INTO scheduled_tasks'
@@ -50,6 +65,8 @@ def set_future_reminder(invoker, target, channeltarget, timetofire, eventtype, e
                             'VALUES (%s,%s,%s,%s,%s,%s,%s)',
                             (invoker, target, channeltarget, now, timetofire, eventtype, eventmsg))
     database.connection.commit()
+
+    return True
 
 #the background task checking the db for things to do
 async def scheduler_check_for_work():
@@ -74,7 +91,7 @@ async def scheduler_check_for_work():
             elif work['event_type'] == "UNBAN_MEMBER":
                 await scheduler_unban_member(work)
             else:
-                logger.error("ERROR: Unknown work type. POST_MESSAGE, UNBAN_MEMBER, UNSILENCE_MEMBER are currently supported")
+                logger.error("ERROR: Unknown work type. POST_MESSAGE, UNBAN_MEMBER are currently supported")
 
         await asyncio.sleep(60)
 
